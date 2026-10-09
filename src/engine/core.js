@@ -166,19 +166,25 @@ GU.prop = function (g, o) {
 GU.dynColliders = [];
 const CELL = 1;
 GU.colGrid = new Map();
-GU.indexColliders = function () {
-  GU.colGrid.clear();
-  for (const c of GU.colliders) {
-    const b = c.box;
-    for (let x = Math.floor(b.min.x / CELL); x <= Math.floor(b.max.x / CELL); x++) {
-      for (let z = Math.floor(b.min.z / CELL); z <= Math.floor(b.max.z / CELL); z++) {
-        const k = x * 100003 + z;
-        let list = GU.colGrid.get(k);
-        if (!list) GU.colGrid.set(k, (list = []));
-        list.push(c);
-      }
+function gridInsert(c) {
+  const b = c.box;
+  for (let x = Math.floor(b.min.x / CELL); x <= Math.floor(b.max.x / CELL); x++) {
+    for (let z = Math.floor(b.min.z / CELL); z <= Math.floor(b.max.z / CELL); z++) {
+      const k = x * 100003 + z;
+      let list = GU.colGrid.get(k);
+      if (!list) GU.colGrid.set(k, (list = []));
+      list.push(c);
     }
   }
+}
+GU.indexColliders = function () {
+  GU.colGrid.clear();
+  for (const c of GU.colliders) gridInsert(c);
+};
+// Add a static collider after the world is built (e.g. a wall panel breaking into tiles).
+GU.addCollider = function (c) {
+  GU.colliders.push(c);
+  gridInsert(c);
 };
 let stamp = 0;
 // Every enabled collider whose box overlaps the given box (y range included).

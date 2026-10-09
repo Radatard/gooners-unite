@@ -18,7 +18,10 @@
   const G12 = 0.0127;              // 1/2" drywall
   const G16x2 = 0.032;             // two layers of 5/8" Type X drywall
   const OC = 0.406;                // 16" on center
-  const ROWS = [0, 0.7, 1.4, 2.1]; // how drywall/studs split into breakable pieces
+  const ROWS = [0, 0.7, 1.4, 2.1]; // how drywall/studs split into panels
+  const TILE = 0.055;              // panels break up into tiles this size once they're hit
+  const SHEETS = { gyp: 1, osb: 1, insul: 1 };
+  const PIECE_COLOR = { gyp: '#ece9e0', insul: '#f5a3b8', osb: '#c49a5a' };
 
   // Real assemblies used in mid-rise wood-frame apartments.
   const TYPES = (GU.WALL_TYPES = {
@@ -235,9 +238,10 @@
       this.el('plate', 0, L, top, H, w0, w1, { mat: M.plate, label: 'plate' });
       // insulation batts fill each stud bay
       if (T.insul) {
-        this.grid(cu, rv, (u0, u1, v0, v1) => {
+        const layer = 'ins' + w0.toFixed(3);
+        this.grid(cu, rv, (u0, u1, v0, v1, i, j) => {
           if (v1 <= STUD || v0 >= top) return;
-          this.el('insul', u0, u1, Math.max(v0, STUD), Math.min(v1, top), w0 + 0.006, w1 - 0.006, { hp: 1, brk: true, blocks: true, mat: M.insul, label: 'insul' });
+          this.el('insul', u0, u1, Math.max(v0, STUD), Math.min(v1, top), w0 + 0.006, w1 - 0.006, { hp: 1, brk: true, blocks: true, mat: M.insul, label: 'insul', layer, i, j });
         });
       }
       this.coreW = this.coreW || [];
@@ -306,24 +310,287 @@
       this.el('pipe', u + 0.12, u + 0.18, 0, this.h - 2 * STUD, wc - 0.03, wc + 0.03, { hp: 2, brk: true, mat: M.pvc, label: 'pvc' });
     }
 
-    // Make the hammer hit an element.
-    hit(e, point) {
-      const first = !learned.has(e.label || e.k);
-      if (first) learned.add(e.label || e.k);
+    // ---------- getting hit ----------
+    // blow = { energy, dir, kind: 'overhead' | 'side' | 'impact', blowout }
+    // energy is in "hits": a tap is ~0.4, a fully charged sledgehammer swing ~3.2.
+    // Returns { absorb: energy used up, through: punched through it?, hard: hammer bounced off? }
+    hit(e, point, blow) {
+      if (!blow) blow = { energy: 1, dir: this.axis === 'x' ? new THREE.Vector3(0, 0, -1) : new THREE.Vector3(-1, 0, 0), kind: 'impact' };
+      const E = blow.energy, key = e.label || e.k, loud = blow.kind !== 'impact';
+      const first = loud && !learned.has(key);
+      if (first) learned.add(key);
       if (!e.brk) {
-        GU.sfx && GU.sfx(e.k === 'brick' || e.k === 'cmu' ? 'clank' : 'thud');
-        GU.debris && GU.debris(point, e.k === 'brick' ? '#a8472f' : '#bbbbb4', 2, 0.6);
-        GU.say(LEARN[e.label || e.k] || 'It won\'t break.', 3);
-        return false;
+        const hard = e.k === 'brick' || e.k === 'cmu';
+        if (loud) {
+          GU.sfx(hard ? 'clank' : 'thud', Math.min(1, 0.4 + E / 3));
+          GU.debris(point, e.k === 'brick' ? '#a8472f' : '#bbbbb4', 2 + Math.floor(E), 0.6);
+          GU.say(LEARN[key] || 'It won\'t break.', 3);
+        }
+        return { absorb: E, through: false, hard };
       }
-      e.hp -= 1;
-      const color = { gyp: '#ece9e0', stud: '#dcbf8a', insul: '#f5a3b8', osb: '#c49a5a', wire: '#ffd23f', ebox: '#2f6fd6', pipe: '#2f6fd6' }[e.k] || '#cccccc';
-      GU.sfx && GU.sfx({ gyp: 'crumble', stud: 'crack', insul: 'thud', osb: 'crack', wire: 'zap', ebox: 'crack', pipe: 'splash' }[e.k] || 'thud');
-      GU.debris && GU.debris(point, color, e.hp <= 0 ? 8 : 3, e.k === 'insul' ? 0.6 : 1);
-      if (first && LEARN[e.label || e.k]) GU.say(LEARN[e.label || e.k], 3);
-      if (e.hp > 0) return true;
+      if (first && LEARN[key]) GU.say(LEARN[key], 3);
+      if (SHEETS[e.k]) return this.sheetHit(e, point, blow);
+      if (e.k === 'stud') return this.studHit(e, point, blow);
+      // wires, electrical boxes, pipes
+      GU.sfx({ wire: 'zap', ebox: 'crack', pipe: 'splash' }[e.k] || 'thud', 0.8);
+      GU.debris(point, { wire: '#ffd23f', ebox: '#2f6fd6', pipe: '#2f6fd6', pvc: '#f4f4f0' }[e.k] || '#cccccc', 3, 0.6);
+      e.hp -= E;
+      if (e.hp > 0) return { absorb: E, through: false };
       this.breakEl(e);
-      return true;
+      return { absorb: Math.min(E, 0.15), through: true };
+    }
+
+    // Drywall, OSB and insulation get split into ~5 cm tiles the first time they're hit,
+    // so holes come out the shape of the blow instead of whole panels.
+    tileUp(e) {
+      if (e.tiled) return;
+      const nu = Math.max(2, Math.round((e.u1 - e.u0) / TILE)), nv = Math.max(2, Math.round((e.v1 - e.v0) / TILE));
+      const n = nu * nv;
+      Object.assign(e, { tiled: true, nu, nv, du: (e.u1 - e.u0) / nu, dv: (e.v1 - e.v0) / nv, alive: n, total: n });
+      e.th = new Float32Array(n).fill(e.k === 'insul' ? 0.3 : e.k === 'osb' ? 2.2 : e.hp);
+      e.cr = new Uint8Array(n);
+      e.str = new Float32Array(n).fill(1);
+      if (e.k === 'gyp') {
+        // drywall is screwed to the studs: right over a stud it barely breaks
+        const studs = this.els.filter((s) => s.k === 'stud' && !s.broken && s.v1 > e.v0 && s.v0 < e.v1 && s.u1 > e.u0 - 0.05 && s.u0 < e.u1 + 0.05);
+        for (let i = 0; i < nu; i++) {
+          const u = e.u0 + (i + 0.5) * e.du;
+          const over = studs.some((s) => u > s.u0 - 0.02 && u < s.u1 + 0.02);
+          for (let j = 0; j < nv; j++) e.str[j * nu + i] = over ? 2.6 : i === 0 || i === nu - 1 ? 1.5 : 1;
+        }
+      }
+      if (e.blocks) {
+        for (let j = 0; j < nv; j++) {
+          for (let i = 0; i < nu; i++) {
+            const k = j * nu + i;
+            GU.addCollider({ box: this.worldBox(e.u0 + i * e.du, e.u0 + (i + 1) * e.du, e.v0 + j * e.dv, e.v0 + (j + 1) * e.dv, e.w0, e.w1), enabled: () => e.th[k] > 0, el: e });
+          }
+        }
+      }
+    }
+
+    tileAt(e, u, v) {
+      const i = Math.floor((u - e.u0) / e.du), j = Math.floor((v - e.v0) / e.dv);
+      if (i < 0 || j < 0 || i >= e.nu || j >= e.nv) return -1;
+      return j * e.nu + i;
+    }
+
+    sheetHit(e, point, blow) {
+      const L = this.toLocal(point), D = blow.dir;
+      const cos = Math.abs(this.axis === 'x' ? D.z : D.x);
+      const alongU = this.axis === 'x' ? D.x : D.z;
+      const En = blow.energy * (0.3 + 0.7 * cos); // glancing blows do less
+      // hole shape: overhead swings tear tall holes, side swings wide ones, glancing blows rip along
+      let au = 1, av = 1;
+      if (blow.kind === 'overhead') { av = 1.35; au = 0.8; } else if (blow.kind === 'side') { au = 1.35; av = 0.8; }
+      au *= 1 + (1 - cos) * Math.abs(alongU) * 1.5;
+      av *= 1 + (1 - cos) * Math.abs(D.y) * 1.5;
+      const R = (0.04 + 0.11 * Math.sqrt(En)) * (e.k === 'insul' ? 1.5 : e.k === 'osb' ? 0.7 : 1) * (blow.blowout ? 1.4 : 1);
+      const harm = [0, 1, 2].map(() => ({ a: 0.12 + Math.random() * 0.2, f: 2 + Math.floor(Math.random() * 5), p: Math.random() * 6.28 }));
+      const crackLen = e.k === 'gyp' ? 0.1 + 0.3 * En : 0;
+      const reach = Math.max(R * 1.7 * Math.max(au, av), crackLen) + 0.06;
+      const sheets = this.els.filter((s) => s.layer === e.layer && !s.broken && s.u1 > L.u - reach && s.u0 < L.u + reach && s.v1 > L.v - reach && s.v0 < L.v + reach);
+      const before = new Map();
+      for (const s of sheets) { this.tileUp(s); before.set(s, s.th.slice()); }
+      for (const s of sheets) {
+        for (let j = 0; j < s.nv; j++) {
+          for (let i = 0; i < s.nu; i++) {
+            const k = j * s.nu + i;
+            if (s.th[k] <= 0) continue;
+            const du = (s.u0 + (i + 0.5) * s.du - L.u) / au, dv = (s.v0 + (j + 0.5) * s.dv - L.v) / av;
+            const d = Math.hypot(du, dv), ang = Math.atan2(dv, du);
+            let rr = R;
+            for (const h of harm) rr *= 1 + h.a * Math.sin(ang * h.f + h.p);
+            let dmg = 0;
+            if (d < rr) dmg = En * 1.6 * Math.pow(1 - d / rr, 0.6) * (0.7 + Math.random() * 0.6);
+            else if (d < rr * 1.6) { dmg = En * 0.12 * Math.random(); if (e.k === 'gyp' && Math.random() < 0.5) s.cr[k] = 1; }
+            s.th[k] -= dmg / s.str[k];
+          }
+        }
+      }
+      // cracks spider out from the impact
+      if (crackLen) {
+        const sheetAt = (u, v) => sheets.find((s) => u >= s.u0 && u < s.u1 && v >= s.v0 && v < s.v1);
+        const nc = Math.min(6, 1 + Math.floor(En * 1.6));
+        for (let c = 0; c < nc; c++) {
+          let a = Math.random() * Math.PI * 2;
+          if (blow.kind === 'overhead' && Math.random() < 0.6) a = Math.random() < 0.5 ? Math.PI / 2 : -Math.PI / 2;
+          let u = L.u, v = L.v;
+          const len = crackLen * (0.5 + Math.random());
+          for (let t = 0; t < len; t += TILE * 0.7) {
+            a += (Math.random() - 0.5) * 0.9;
+            u += Math.cos(a) * TILE * 0.7; v += Math.sin(a) * TILE * 0.7;
+            const s = sheetAt(u, v);
+            if (!s) break;
+            const k = this.tileAt(s, u, v);
+            if (k < 0 || s.th[k] <= 0) continue;
+            s.cr[k] = 1;
+            s.th[k] -= 0.1 * En / s.str[k];
+          }
+        }
+      }
+      // what came off, plus anything left dangling with nothing holding it up
+      const gone = [], loose = [];
+      for (const s of sheets) {
+        const b = before.get(s);
+        let changed = false;
+        for (let k = 0; k < s.th.length; k++) if (b[k] > 0 && s.th[k] <= 0) { gone.push([s, k]); changed = true; }
+        if (!changed) continue;
+        for (const k of this.unsupported(s)) { s.th[k] = 0; loose.push([s, k]); }
+      }
+      for (const s of sheets) this.recount(s);
+      this.spawnPieces(gone, blow, En, false);
+      this.spawnPieces(loose, blow, En, true);
+      GU.sfx({ gyp: 'crumble', insul: 'thud', osb: 'crack' }[e.k], Math.min(1, 0.35 + En / 3));
+      GU.debris(point, PIECE_COLOR[e.k], Math.min(14, 2 + Math.floor(gone.length / 3)), e.k === 'insul' ? 0.6 : 1);
+      if (gone.length || loose.length) {
+        this.anyBroken = true;
+        GU.rigid.wakeNear(point, 1.2);
+      }
+      const ch = GU.wallChunks.get(this.chunk);
+      if (ch) ch.dirty = true;
+      this.geoDirty = true;
+      // did it go through? (the hammer head is ~10 cm, so look around the impact point)
+      let through = e.broken;
+      if (!through) {
+        for (const [du, dv] of [[0, 0], [0.03, 0], [-0.03, 0], [0, 0.03], [0, -0.03]]) {
+          const k = this.tileAt(e, L.u + du, L.v + dv);
+          if (k >= 0 && e.th[k] <= 0) { through = true; break; }
+        }
+      }
+      const cost = e.k === 'insul' ? 0.1 : e.k === 'osb' ? 1.2 : 0.55 * e.hp + 0.3;
+      return { absorb: through ? Math.min(blow.energy, cost) : blow.energy, through };
+    }
+
+    // Tiles no longer connected to anything that holds the sheet up (studs, edges, the panel above/below).
+    unsupported(s) {
+      const { nu, nv, th } = s, seen = new Uint8Array(nu * nv), q = [];
+      const holdsBelow = this.neighborHolds(s, -1), holdsAbove = this.neighborHolds(s, 1);
+      for (let j = 0; j < nv; j++) {
+        for (let i = 0; i < nu; i++) {
+          const k = j * nu + i;
+          if (th[k] <= 0) continue;
+          if (i === 0 || i === nu - 1 || s.str[k] > 2 || (j === 0 && holdsBelow) || (j === nv - 1 && holdsAbove)) { seen[k] = 1; q.push(k); }
+        }
+      }
+      while (q.length) {
+        const k = q.pop(), i = k % nu, j = (k - i) / nu;
+        for (const [a, b] of [[i + 1, j], [i - 1, j], [i, j + 1], [i, j - 1]]) {
+          if (a < 0 || b < 0 || a >= nu || b >= nv) continue;
+          const kk = b * nu + a;
+          if (!seen[kk] && th[kk] > 0) { seen[kk] = 1; q.push(kk); }
+        }
+      }
+      const out = [];
+      for (let k = 0; k < th.length; k++) if (th[k] > 0 && !seen[k]) out.push(k);
+      return out;
+    }
+
+    neighborHolds(s, dir) {
+      if (dir < 0 && s.v0 < 0.05) return true;
+      if (dir > 0 && s.v1 > this.h - 0.05) return true;
+      return this.els.some((o) => o.layer === s.layer && o.i === s.i && o.j === s.j + dir && !o.broken && (!o.tiled || o.alive > 0));
+    }
+
+    recount(s) {
+      let alive = 0;
+      for (let k = 0; k < s.th.length; k++) if (s.th[k] > 0) alive++;
+      s.alive = alive;
+      for (const c of s.children || []) {
+        const k = this.tileAt(s, (c.u0 + c.u1) / 2, (c.v0 + c.v1) / 2);
+        if (k >= 0 && s.th[k] <= 0) c.broken = true;
+      }
+      if (alive === 0) this.breakEl(s);
+      else if (alive < s.total * 0.75) this.dropMounts(s);
+    }
+
+    // Knocked-off tiles become flying chunks a few tiles big. Loose ones just drop.
+    spawnPieces(list, blow, En, loose) {
+      if (!list.length) return;
+      const bySheet = new Map();
+      for (const [s, k] of list) {
+        let set = bySheet.get(s);
+        if (!set) bySheet.set(s, (set = new Set()));
+        set.add(k);
+      }
+      let budget = loose ? 10 : Math.round(8 + 4 * En);
+      const rnd = () => Math.random() - 0.5;
+      for (const [s, set] of bySheet) {
+        const ks = [...set].sort(() => Math.random() - 0.5);
+        for (const k0 of ks) {
+          if (!set.has(k0)) continue;
+          const want = loose ? 3 + Math.floor(Math.random() * 10) : 1 + Math.floor(Math.random() * 5);
+          const piece = [k0];
+          set.delete(k0);
+          for (let p = 0; p < piece.length && piece.length < want; p++) {
+            const k = piece[p], i = k % s.nu;
+            for (const kk of [k + 1, k - 1, k + s.nu, k - s.nu]) {
+              if (!set.has(kk) || piece.length >= want || Math.abs((kk % s.nu) - i) > 1) continue;
+              piece.push(kk);
+              set.delete(kk);
+            }
+          }
+          let i0 = 1e9, i1 = -1, j0 = 1e9, j1 = -1;
+          for (const k of piece) {
+            const i = k % s.nu, j = (k - i) / s.nu;
+            i0 = Math.min(i0, i); i1 = Math.max(i1, i); j0 = Math.min(j0, j); j1 = Math.max(j1, j);
+          }
+          const c = this.toWorld(s.u0 + (i0 + i1 + 1) / 2 * s.du, s.v0 + (j0 + j1 + 1) / 2 * s.dv, (s.w0 + s.w1) / 2);
+          if (budget-- <= 0) { GU.debris(c, PIECE_COLOR[s.k], 2, 0.8); continue; }
+          const vel = loose
+            ? new THREE.Vector3(rnd() * 0.6, 0, rnd() * 0.6).addScaledVector(blow.dir, 0.5)
+            : blow.dir.clone().multiplyScalar(0.8 + 3.2 * En * Math.random()).add(new THREE.Vector3(rnd() * 1.6, Math.random() * 1.4, rnd() * 1.6));
+          const ins = s.k === 'insul';
+          GU.rigid.chunk({
+            pos: c, rotY: this.axis === 'z' ? Math.PI / 2 : 0,
+            sx: (i1 - i0 + 1) * s.du * 1.25, sy: (j1 - j0 + 1) * s.dv * 1.25, sz: (s.w1 - s.w0) * (ins ? 0.7 : 1),
+            mats: s.k === 'gyp' ? [s.side < 0 ? s.fn : s.fp, M.gyp] : [s.mat, s.mat],
+            vel, ang: new THREE.Vector3(rnd() * 10, rnd() * 10, rnd() * 10),
+            density: ins ? 30 : s.k === 'osb' ? 600 : 700, bounce: ins ? 0.05 : 0.25, drag: ins ? 2.5 : 0.1,
+            sfx: s.k === 'gyp' ? 'tick' : s.k === 'osb' ? 'drop' : 'none',
+          });
+        }
+      }
+    }
+
+    // Studs snap where they're hit: that bit flies off, the rest stays nailed to the plates.
+    studHit(e, point, blow) {
+      const E = blow.energy;
+      e.hpMax = e.hpMax || e.hp;
+      const before = e.hp;
+      e.hp -= E * 0.95;
+      GU.debris(point, '#dcbf8a', 3 + Math.floor(E), 0.8);
+      if (e.hp > 0) { GU.sfx('crack', Math.min(1, 0.5 + E / 6)); return { absorb: E, through: false }; }
+      GU.sfx('snap');
+      const pv = Math.min(e.v1, Math.max(e.v0, point.y));
+      const c0 = Math.max(e.v0, pv - 0.1 - Math.random() * 0.15), c1 = Math.min(e.v1, pv + 0.1 + Math.random() * 0.15);
+      this.breakEl(e);
+      for (const [a, b] of [[e.v0, c0], [c1, e.v1]]) {
+        if (b - a < 0.05) continue;
+        const ne = this.el('stud', e.u0, e.u1, a, b, e.w0, e.w1, { hp: e.hpMax * 0.6, hpMax: e.hpMax, brk: true, blocks: true, mat: M.stud, label: 'stud' });
+        GU.addCollider({ box: ne.box, enabled: () => !ne.broken, el: ne });
+      }
+      const left = Math.max(0, E - before / 0.95 * 0.7);
+      const wb = this.worldBox(e.u0, e.u1, c0, c1, e.w0, e.w1), size = wb.getSize(new THREE.Vector3());
+      const m = new THREE.Mesh(GU.boxGeo(size.x, size.y, size.z), M.stud);
+      wb.getCenter(m.position);
+      GU.dropped.add(m);
+      const rnd = () => Math.random() - 0.5;
+      GU.rigid.add(m, {
+        vel: blow.dir.clone().multiplyScalar(1.2 + 2 * left).add(new THREE.Vector3(rnd(), Math.random(), rnd())),
+        ang: new THREE.Vector3(rnd() * 8, rnd() * 8, rnd() * 8), density: 500, bounce: 0.3, sfx: 'drop', kind: 'debris',
+      });
+      return { absorb: E - left, through: true };
+    }
+
+    // Pictures, shelves, clocks... hung on this piece of drywall fall off.
+    dropMounts(e) {
+      for (const o of e.mounts || []) {
+        if (!o.parent || o.userData.broken) continue;
+        GU.dropped.attach(o);
+        GU.fall(o);
+      }
+      e.mounts = null;
     }
 
     breakEl(e) {
@@ -331,21 +598,43 @@
       this.anyBroken = true;
       for (const c of e.children || []) c.broken = true;
       for (const o of e.attach || []) { o.visible = false; o.userData.interact = null; }
-      // pictures, shelves, clocks... hung on this piece of drywall fall off
-      for (const o of e.mounts || []) {
-        if (!o.parent || o.userData.broken) continue;
-        GU.dropped.attach(o);
-        GU.fall(o);
-      }
+      this.dropMounts(e);
       if (e.k === 'wire' && e.circuit && !e.circuit.cut) {
         e.circuit.cut = true;
         GU.sparks && GU.sparks(e.box.getCenter(new THREE.Vector3()));
         GU.say('*ZZZT* You cut the ' + e.circuit.name + ' circuit. Its lights and outlets are dead.', 4);
       }
       if (e.onBreak) e.onBreak(e);
+      if (GU.rigid) GU.rigid.wakeNear(e.box.getCenter(new THREE.Vector3()), 1);
       const ch = GU.wallChunks.get(this.chunk);
       if (ch) ch.dirty = true;
+      this.geoDirty = true;
     }
+  };
+
+  // Swing through a wall: each layer soaks up some of the blow and the rest carries on into the next
+  // (drywall -> stud / insulation / wiring -> the drywall on the far side, which blows out).
+  GU.wallStrike = function (hit, blow) {
+    let E = blow.energy, cur = hit, hard = false, n = 0;
+    const seen = new Set(), ray = new THREE.Ray();
+    const path = blow.aim || blow.dir;
+    while (cur && E > 0.12 && n < 8) {
+      seen.add(cur.e);
+      const res = cur.wall.hit(cur.e, cur.point, Object.assign({}, blow, { energy: E, blowout: n > 0 && cur.e.k === 'gyp' }));
+      if (res.hard) hard = true;
+      E -= res.absorb;
+      n++;
+      if (!res.through) break;
+      ray.set(cur.point.clone().addScaledVector(path, 0.004), path);
+      cur = GU.raycastWalls(ray, 0.45, null, 0.03, seen);
+    }
+    return { hard, left: Math.max(0, E), layers: n };
+  };
+
+  // Something flying into a wall (thrown, or launched by the hammer).
+  GU.wallImpact = function (e, point, energy, dir) {
+    if (e.broken || !e.brk || energy < 0.15) return;
+    e.wall.hit(e, point, { energy: Math.min(energy, 4), dir, kind: 'impact' });
   };
 
   // ---------- rendering ----------
@@ -388,18 +677,102 @@
     return f;
   }
 
+  // A sheet that's been hit: draw its surviving tiles, merged into runs along each row.
+  // Cracked tiles get a darker version of the paint.
+  const cracked = new Map();
+  function crackMat(m) {
+    let c = cracked.get(m);
+    if (!c) { c = m.clone(); c.color = m.color.clone().multiplyScalar(0.55); cracked.set(m, c); }
+    return c;
+  }
+  function emitTiles(buckets, wall, e, fN, fP) {
+    const { nu, nv, th, cr } = e;
+    const ed = edgeIds(wall);
+    const fn = e.fn || e.mat, fp = e.fp || e.mat;
+    for (let j = 0; j < nv; j++) {
+      let i = 0;
+      while (i < nu) {
+        const k = j * nu + i;
+        if (th[k] <= 0) { i++; continue; }
+        const c = cr[k];
+        let i1 = i + 1;
+        while (i1 < nu && th[j * nu + i1] > 0 && cr[j * nu + i1] === c) i1++;
+        const box = wall.worldBox(e.u0 + i * e.du, e.u0 + i1 * e.du, e.v0 + j * e.dv, e.v0 + (j + 1) * e.dv, e.w0, e.w1);
+        // edge faces only where they border a hole
+        const deadIn = (row, a, b) => {
+          if (row < 0 || row >= nv) return true;
+          for (let x = a; x < b; x++) if (th[row * nu + x] <= 0) return true;
+          return false;
+        };
+        const s0 = i, s1 = i1, row = j;
+        emitBox(buckets, box, (id) => {
+          const m = id === fN ? fn : id === fP ? fp : e.mat;
+          return c && m !== e.mat ? crackMat(m) : m;
+        }, (id) => {
+          if (id === ed.u0) return s0 > 0 && th[row * nu + s0 - 1] > 0;
+          if (id === ed.u1) return s1 < nu && th[row * nu + s1] > 0;
+          if (id === '+y') return !deadIn(row + 1, s0, s1);
+          if (id === '-y') return !deadIn(row - 1, s0, s1);
+          return false;
+        });
+        i = i1;
+      }
+    }
+  }
+
+  // Each wall keeps its own geometry and only rebuilds it when something on it broke;
+  // the chunk mesh is then stitched together from all its walls.
   function buildChunk(ch) {
-    const buckets = new Map();
+    for (const wall of ch.walls) if (wall.geoDirty !== false) { wall.geo = buildWallGeo(wall); wall.geoDirty = false; }
+    const sizes = new Map();
     for (const wall of ch.walls) {
+      for (const [mat, k] of wall.geo) {
+        const s = sizes.get(mat) || { v: 0, i: 0 };
+        s.v += k.pos.length / 3; s.i += k.idx.length;
+        sizes.set(mat, s);
+      }
+    }
+    while (ch.group.children.length) {
+      const m = ch.group.children.pop();
+      m.geometry.dispose();
+    }
+    for (const [mat, s] of sizes) {
+      const pos = new Float32Array(s.v * 3), nor = new Float32Array(s.v * 3), uv = new Float32Array(s.v * 2);
+      const idx = new Uint32Array(s.i);
+      let vo = 0, io = 0;
+      for (const wall of ch.walls) {
+        const k = wall.geo.get(mat);
+        if (!k) continue;
+        pos.set(k.pos, vo * 3); nor.set(k.nor, vo * 3); uv.set(k.uv, vo * 2);
+        for (let i = 0; i < k.idx.length; i++) idx[io + i] = k.idx[i] + vo;
+        vo += k.pos.length / 3; io += k.idx.length;
+      }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      g.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+      g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+      g.setIndex(new THREE.BufferAttribute(idx, 1));
+      g.computeBoundingSphere();
+      const mesh = new THREE.Mesh(g, noSnap(mat));
+      mesh.userData.wallChunk = ch;
+      ch.group.add(mesh);
+    }
+    ch.dirty = false;
+  }
+
+  function buildWallGeo(wall) {
+    const buckets = new Map();
+    {
       const fN = faceId(wall, -1), fP = faceId(wall, 1), ed = edgeIds(wall);
       // neighbor lookup so intact drywall only draws its outside faces
       const cells = new Map();
-      for (const e of wall.els) if (e.layer && !e.broken) cells.set(e.layer + ':' + e.i + ':' + e.j, e);
+      for (const e of wall.els) if (e.layer && !e.broken && !e.tiled) cells.set(e.layer + ':' + e.i + ':' + e.j, e);
       const has = (e, di, dj) => cells.has(e.layer + ':' + (e.i + di) + ':' + (e.j + dj));
       for (const e of wall.els) {
         if (e.broken) continue;
         const inner = !(e.k === 'gyp' || e.k === 'cmu' || e.k === 'brick' || e.k === 'cover');
         if (inner && !wall.anyBroken) continue; // studs etc. are invisible until the wall is opened up
+        if (e.tiled) { emitTiles(buckets, wall, e, fN, fP); continue; }
         let skip = null;
         if (e.layer) {
           skip = (id) => {
@@ -417,22 +790,7 @@
         GU.wallEmit(buckets, e, (id) => (id === fN && e.fn ? e.fn : id === fP && e.fp ? e.fp : e.mat), skip);
       }
     }
-    while (ch.group.children.length) {
-      const m = ch.group.children.pop();
-      m.geometry.dispose();
-    }
-    for (const [mat, k] of buckets) {
-      const g = new THREE.BufferGeometry();
-      g.setAttribute('position', new THREE.Float32BufferAttribute(k.pos, 3));
-      g.setAttribute('normal', new THREE.Float32BufferAttribute(k.nor, 3));
-      g.setAttribute('uv', new THREE.Float32BufferAttribute(k.uv, 2));
-      g.setIndex(k.idx);
-      g.computeBoundingSphere();
-      const mesh = new THREE.Mesh(g, noSnap(mat));
-      mesh.userData.wallChunk = ch;
-      ch.group.add(mesh);
-    }
-    ch.dirty = false;
+    return buckets;
   }
   GU.wallEmit = (buckets, e, matFor, skip) => emitBox(buckets, e.box, matFor, skip);
 
@@ -447,7 +805,7 @@
       w.box = new THREE.Box3();
       for (const e of w.els) w.box.union(e.box);
       for (const e of w.els) {
-        if (e.blocks) GU.colliders.push({ box: e.box, enabled: () => !e.broken });
+        if (e.blocks) GU.colliders.push({ box: e.box, enabled: () => !e.broken && !e.tiled, el: e });
       }
     }
     for (const ch of GU.wallChunks.values()) buildChunk(ch);
@@ -477,7 +835,19 @@
   const padBox = new THREE.Box3();
   // pad: treat every element as this much bigger (the sledgehammer head is ~10 cm wide,
   // so it can catch a 4 cm stud even if the crosshair is slightly off).
-  GU.raycastWalls = function (ray, far, filter, pad) {
+  // skip: optional Set of elements to ignore. Tiled sheets only count where a tile is left.
+  function tileNear(w, e, p, pad) {
+    const L = w.toLocal(p), r = Math.ceil(pad / e.du);
+    const i0 = Math.floor((L.u - e.u0) / e.du), j0 = Math.floor((L.v - e.v0) / e.dv);
+    for (let dj = -r; dj <= r; dj++) {
+      for (let di = -r; di <= r; di++) {
+        const i = i0 + di, j = j0 + dj;
+        if (i >= 0 && j >= 0 && i < e.nu && j < e.nv && e.th[j * e.nu + i] > 0) return true;
+      }
+    }
+    return false;
+  }
+  GU.raycastWalls = function (ray, far, filter, pad, skip) {
     let best = null;
     for (const w of GU.walls) {
       if (filter && !filter(w)) continue;
@@ -488,9 +858,10 @@
       if (!inside && dW > far) continue;
       if (best && !inside && dW > best.dist) continue;
       for (const e of w.els) {
-        if (e.broken || e.k === 'cover') continue;
+        if (e.broken || e.k === 'cover' || (skip && skip.has(e))) continue;
         const p = ray.intersectBox(pad ? padBox.copy(e.box).expandByScalar(pad) : e.box, tmp);
         if (!p) continue;
+        if (e.tiled && !tileNear(w, e, p, pad || 0)) continue; // went through a hole
         const d = p.distanceTo(ray.origin);
         if (d <= far && (!best || d < best.dist)) best = { e, wall: w, dist: d, point: p.clone() };
       }

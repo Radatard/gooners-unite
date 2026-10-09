@@ -22,6 +22,10 @@
     #zone { left: 20px; top: 14px; font-size: 32px; color: #2ec4b6; transition: opacity 0.3s; }
     #inv { right: 20px; top: 14px; font-size: 22px; text-align: right; color: #cfcfcf; }
     #inv b { color: #ffd60a; font-weight: normal; }
+    #charge { left: 50%; top: calc(50% + 14px); width: 64px; height: 5px; margin-left: -32px; background: rgba(0, 0, 0, 0.55); display: none; }
+    #charge i { display: block; height: 100%; width: 0; background: #ffd60a; }
+    #charge.full i { background: #ff9f1c; }
+    #charge.over i { background: #ff4f81; }
     #overlay {
       position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
       background: radial-gradient(circle at 50% 40%, rgba(255, 79, 129, 0.35), rgba(20, 15, 36, 0.92) 70%); cursor: pointer; text-align: center; padding: 16px;
@@ -44,6 +48,7 @@
   <div id="msg" class="hud"></div>
   <div id="zone" class="hud"></div>
   <div id="inv" class="hud"></div>
+  <div id="charge" class="hud"><i></i></div>
 
   <div id="overlay">
     <h1>GOONERS<br>UNITE</h1>
@@ -52,7 +57,7 @@
     <div class="keys">
       <span>WASD</span> move &nbsp; <span>MOUSE</span> look &nbsp; <span>SHIFT</span> run &nbsp; <span>C</span> crouch<br>
       <span>E</span> open, use, pick up &nbsp; <span>G / RIGHT CLICK</span> drag furniture &nbsp; <span>Q</span> drop &nbsp; <span>F</span> throw<br>
-      <span>CLICK</span> use (or swing the sledgehammer) &nbsp; <span>WHEEL / TAB / 1-9</span> switch held item &nbsp; <span>ESC</span> pause
+      <span>CLICK</span> use &nbsp; <span>HOLD + RELEASE</span> swing the sledgehammer (flick sideways for a side swing)<br> &nbsp; <span>WHEEL / TAB / 1-9</span> switch held item &nbsp; <span>ESC</span> pause
     </div>
   </div>
   <div id="loading">LOADING...</div>
@@ -65,6 +70,7 @@
   <script src="src/engine/furniture.js"></script>
   <script src="src/engine/walls.js"></script>
   <script src="src/engine/build.js"></script>
+  <script src="src/engine/rigid.js"></script>
   <script src="src/engine/physics.js"></script>
   <script src="src/engine/player.js"></script>
   <!-- World: floor plan, shared rooms, then one file per apartment -->

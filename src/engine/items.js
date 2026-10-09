@@ -339,7 +339,7 @@
     ['cat_toy', 'Cat Toy Mouse', 'fruit', [0.025], ['#9e9e9e'], '', 'Catnip mouse, well loved.'],
 
     // ---- tools (sledgehammer: electrical room, the rest: maintenance room) ----
-    ['sledgehammer', 'Sledgehammer', 'custom_sledge', [], ['#c62828'], '', '10 lb sledgehammer. Left-click to swing. Breaks drywall, studs, furniture... almost anything.'],
+    ['sledgehammer', 'Sledgehammer', 'custom_sledge', [], ['#c62828'], '', '10 lb sledgehammer. Hold left-click to wind up, let go to swing. Breaks drywall, studs, furniture... almost anything.'],
     ['claw_hammer', 'Claw Hammer', 'custom_hammer', [], ['#1d4ed8'], '', '16 oz claw hammer.'],
     ['screwdriver', 'Screwdriver', 'utensil', [0.22], ['#ffd60a'], 'knife', 'Phillips #2 screwdriver.'],
     ['wrench', 'Pipe Wrench', 'utensil', [0.35], ['#c62828'], 'tongs', '14" pipe wrench.'],

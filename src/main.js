@@ -144,7 +144,7 @@
     lights();
     zones(dt);
     player.hud();
-    GU.hand.position.y = -0.17 + Math.sin(player.bob * 0.5) * 0.008;
+    GU.hand.position.y = -0.17 + Math.sin(player.bob * 0.5) * 0.008 + (GU.handLift || 0);
     renderer.autoClear = true;
     renderer.render(scene, camera);
     renderer.autoClear = false;

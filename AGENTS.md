@@ -15,7 +15,8 @@ Several friends edit this game, each with their own AI (Claude, ChatGPT, Copilot
   - `src/engine/furniture.js`: furniture, appliances, doors, cabinets, drawers. The `tag(...)` list at the bottom says what can be dragged and smashed.
   - `src/engine/walls.js`: realistic layered, destructible walls (see "How walls work")
   - `src/engine/build.js`: floors, ceilings, doors, windows, lights/circuits/switches/breaker panels, and the `Unit` class (kitchen/bath/laundry builders)
-  - `src/engine/physics.js`: falling, throwing, dragging furniture, smashing, debris, sounds, the sledgehammer
+  - `src/engine/rigid.js`: the (deliberately a bit janky) rigid-body engine for loose stuff. See "How physics works"
+  - `src/engine/physics.js`: dropping, throwing, dragging furniture, smashing and crumpling, debris, sounds, the chargeable sledgehammer swing
   - `src/engine/player.js`: movement, collision, interaction, inventory
   - `src/world/layout.js`: the floor plan: apartment templates (studio / 1 bed / 2 bed), where each unit goes, shared rooms
   - `src/world/building.js`: contents of the shared rooms (stairs, lobby, maintenance, laundry...)
@@ -28,6 +29,16 @@ Several friends edit this game, each with their own AI (Claude, ChatGPT, Copilot
 - Each wall is made of elements: drywall panels on each side, 2x4 or 2x6 studs at 16" on center (split into breakable sections), king and jack studs plus headers at openings, plates, insulation, Romex wiring and outlet boxes, and PEX/PVC pipes in plumbing walls. Every element has hit points and its own collision box.
 - Doors and windows are openings: add them in a template's `doors` / `windows`, or in `COMMON_DOORS` / `COMMON_WINDOWS` in `layout.js`.
 - Cutting a wire kills that room's circuit (lights off). Each unit has a breaker panel, and the electrical room has the building's main disconnect.
+- Hits carry energy measured in "hits" (a tap is ~0.4, a fully charged sledgehammer swing ~3.2). The first time a drywall, OSB or insulation panel gets hit, it splits into ~5 cm tiles. Damage spreads in a ragged blob shaped by the energy, the swing direction (overhead = tall hole, side = wide) and the angle of the blow. Cracks spread out from the impact, and tiles right over a stud are much stronger. Tiles left hanging with nothing holding them up fall off. Removed tiles fly off as physics chunks.
+- `GU.wallStrike(hit, blow)` carries the blow through the wall layer by layer. Each layer soaks up some of the energy, and the rest goes on to the studs, wiring and the far drywall, which blows out with a bigger hole. Studs snap where they're hit, and the snapped piece flies off. `GU.wallImpact` is the same thing for thrown or flying objects.
+
+## How physics works
+
+- Loose things (wall chunks, snapped studs, broken pieces, items you drop or throw, things the hammer knocks over) are rigid bodies in `GU.rigid`. Each body is an oriented box whose corners collide with the floor, the ceiling and every collider box. Bodies bump each other as spheres. Bodies go to sleep when they stop moving.
+- It's meant to be realistic-ish but a bit shitty, with fun glitches: things occasionally super-bounce, spin weirdly, twitch while asleep, or tunnel into places. Tune that in `GU.JANK` at the top of `rigid.js`.
+- Use `GU.fall(obj)` to drop something and `GU.throwItem(item, pos, vel)` to throw it. `GU.smash(obj, point, { energy, dir, speed })` damages a breakable. Paper, plastic and metal stuff crumples (its mesh really deforms) and light things get knocked flying. Stacks of boxes come apart.
+- Debris is capped (`MAX_DEBRIS` in `rigid.js`) so a long demolition session doesn't kill the frame rate. The oldest debris gets cleaned up first.
+- The sledgehammer: hold the mouse button to wind up, release to swing. Charge decides the energy. Flicking the mouse sideways on release makes it a side swing. Hits get hit-stop and screen shake, and the hammer recoils off brick, concrete and the floor.
 
 ## Performance rules (important: some of us have weak laptop GPUs)
 

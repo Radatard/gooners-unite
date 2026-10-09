@@ -53,12 +53,14 @@
         this.yaw -= e.movementX * 0.0022;
         this.pitch -= e.movementY * 0.0022;
         this.pitch = Math.max(-1.5, Math.min(1.5, this.pitch));
+        GU.swingMouse(e.movementX, e.movementY);
       });
       addEventListener('mousedown', (e) => {
         if (!GU.locked) return;
-        if (e.button === 0) { if (this.hasHammer()) GU.swing(this); else this.use(); }
+        if (e.button === 0) { if (this.hasHammer()) GU.swingStart(this); else this.use(); }
         if (e.button === 2) this.toggleGrab();
       });
+      addEventListener('mouseup', (e) => { if (e.button === 0) GU.swingRelease(this); });
       addEventListener('contextmenu', (e) => e.preventDefault());
       addEventListener('wheel', (e) => { if (GU.locked) this.cycle(e.deltaY > 0 ? 1 : -1); });
     }
@@ -183,9 +185,10 @@
       if (!item) return;
       const view = item.clone();
       if (item.userData.item.id === 'sledgehammer') {
-        view.rotation.set(0, Math.PI / 2, 1.1);
-        view.position.set(0.05, -0.05, 0.05);
-        view.scale.setScalar(0.55);
+        // handle pointing up from the hand, grip at the pivot (physics.js swings the hand around it)
+        view.rotation.set(0, 0, Math.PI / 2);
+        view.position.set(0, 0.21, 0);
+        view.scale.setScalar(0.6);
       } else {
         const size = new THREE.Box3().setFromObject(view).getSize(new THREE.Vector3());
         const s = Math.min(1.6, 0.22 / Math.max(size.x, size.y, size.z, 0.01));
@@ -255,7 +258,7 @@
       if (this.hasHammer()) {
         const b = this.hit ? GU.breakableOf(this.hit.object) : null;
         const what = this.wallHit ? describeWall(this.wallHit) : b ? (b.userData.breakable ? b.userData.breakable.name : b.userData.name) : '';
-        p += (p ? '   ' : '') + '[Click] Swing' + (what ? ' at ' + what : '');
+        p += (p ? '   ' : '') + (GU.swingCharging() ? 'Winding up...' : '[Hold click] Swing' + (what ? ' at ' + what : ''));
       }
       prompt.textContent = p;
       info.textContent = i || (this.wallHit && this.hasHammer() ? GU.WALL_TYPES[this.wallHit.wall.type].name : '');
