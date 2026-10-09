@@ -140,14 +140,10 @@ GU.buildBuilding = function () {
   GU.prop(el, { tough: 'Stainless steel elevator doors. They don\'t even dent.' });
   GU.interactive(el, 'Call elevator', () => GU.say('The button lights up, then gives up. Taped sign: "OUT OF ORDER — use stairs".'));
 
-  // ---------------- maintenance room (the sledgehammer lives here) ----------------
+  // ---------------- maintenance room ----------------
   const mx = -25.25, mzA = -10.9;
   const bench2 = GU.table(B, mx + 0.5, -6.0, Math.PI / 2, { w: 2.4, d: 0.7, h: 0.9, mat: GU.mat('#ffffff', GU.tex.lumber('#b8925a')), top: ['claw_hammer', 'screwdriver', 'drill', 'tape_measure', 'utility_knife', 'stud_finder', 'wire_nuts', 'duct_tape_pro'], gap: 0.05 });
   bench2.userData.movable.name = 'workbench';
-  const sledge = GU.item('sledgehammer');
-  sledge.position.set(mx + 0.6, 0.905, -7.0);
-  sledge.rotation.y = Math.PI / 2;
-  B.add(sledge);
   const peg = GU.group(B, mx + 0.13, 1.5, -6.0, Math.PI / 2);
   GU.box(peg, 2.2, 0.9, 0.02, 0, 0, 0, GU.mat('#ffffff', GU.tex.osb()));
   for (let i = 0; i < 5; i++) GU.box(peg, 0.04, 0.25, 0.03, -0.8 + i * 0.4, 0.3, 0.03, M(['#c62828', '#1d4ed8', '#ffd60a', '#222', '#9ea7ad'][i]));
@@ -193,6 +189,11 @@ GU.buildBuilding = function () {
 
   // ---------------- electrical room ----------------
   const ex = 7.25;
+  // the sledgehammer lives here, on the floor against the east wall
+  const sledge = GU.item('sledgehammer');
+  sledge.position.set(ex + 1.6, 0, -4.0);
+  sledge.rotation.y = Math.PI / 2;
+  B.add(sledge);
   const gear = GU.group(B, ex + 1.0, 0, -10.45);
   GU.box(gear, 1.6, 2.0, 0.6, 0, 0, 0, GU.mat('#ffffff', GU.tex.metal('#8a9399')), { solid: true });
   GU.box(gear, 0.25, 0.4, 0.05, 0.5, 1.1, 0.32, M('#d62828'));

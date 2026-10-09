@@ -19,7 +19,7 @@ The first floor is laid out like a real mid-rise apartment building. Units sit o
 - **Storage and items:** every fridge, freezer, pantry, cabinet, drawer, closet, washer and medicine cabinet opens. They're stocked with ~300 kinds of household stuff, and every item can be picked up, dropped, thrown and smashed.
 - **Furniture:** you can drag it around with real collision.
 - **Walls:** built in layers like real wood-frame walls: drywall, studs at 16" on center, headers over doors, insulation, wiring through the studs to outlet boxes, and water/drain pipes in bathroom and kitchen walls.
-- **The sledgehammer:** find it in the maintenance room. Smash through drywall, studs and insulation to get between rooms and apartments. Cut a wire and that room's lights die. Break a pipe and it floods. Brick and concrete block won't break.
+- **The sledgehammer:** find it in the electrical room. Smash through drywall, studs and insulation to get between rooms and apartments. Cut a wire and that room's lights die. Break a pipe and it floods. Brick and concrete block won't break.
 - **Electrical:** each apartment has a breaker panel, and the electrical room has the building's main disconnect.
 
 ## Play
