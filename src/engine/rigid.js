@@ -417,7 +417,7 @@
         for (let s = 0; s < SUB; s++) step(b, h, fast);
         // fell out of the world? put it back on the floor (it happens)
         if (b.pos.y < b.ground - 1.5) { b.pos.y = b.ground + b.R + 0.05; b.vel.set(0, 0, 0); }
-        if (b.vel.lengthSq() > 900) b.vel.setLength(30);
+        if (b.vel.lengthSq() > 2025) b.vel.setLength(45);
         b.sync();
         if (b.obj.userData.collider && (b.colT -= dt) <= 0) { b.colT = 0.2; GU.refreshCollider(b.obj); }
         // asleep once it's stopped going anywhere (thin things can rock in place forever otherwise)

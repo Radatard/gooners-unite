@@ -334,7 +334,7 @@
   }
 
   // ---------- smashing ----------
-  // blow = { energy, dir, speed } (energy in "hits": a tap ~0.4, a full swing ~3.2)
+  // blow = { energy, dir, speed } (energy in "hits": a sledgehammer tap ~3.2, a full charge ~32)
   const FRAG = { glass: 2.2, porcelain: 1.6, plastic: 1, paper: 0.9, metal: 0.7, wood: 0.8, fabric: 0.6 };
   const CRUMPLY = { paper: 1, plastic: 1, metal: 1 };
   GU.smash = function (obj, point, blow) {
@@ -539,8 +539,9 @@
     SW.kind = Math.abs(dx) > 30 && Math.abs(dx) > Math.abs(dy) * 1.2 ? 'side' : 'overhead';
     SW.sign = dx < 0 ? 1 : -1; // flick left: swing from right to left
     SW.c = c;
-    SW.E = (0.35 + 2.85 * Math.pow(c, 1.3)) * (1 + 0.25 * flick) * (over ? 1.35 : 1);
-    SW.speed = (3 + 11 * c) * (1 + 0.2 * flick);
+    // a tap hits like a solid full swing; a full charge is ten times that
+    SW.E = (3.2 + 28.8 * Math.pow(c, 1.3)) * (1 + 0.25 * flick) * (over ? 1.35 : 1);
+    SW.speed = 14 * Math.sqrt(SW.E / 3.2);
     SW.dur = 0.34 - 0.12 * c;
     SW.over = over;
     SW.st = 'swing'; SW.t = 0; SW.hit = false; SW.halt = false; SW.stop = 0;
@@ -653,8 +654,8 @@
               SW.shake = 0.6 + 0.6 * SW.c; SW.ring = 0.25 + 0.5 * SW.c;
               GU.sfx('ring', 0.4 + 0.6 * SW.c);
             } else {
-              SW.stop = 0.03 + 0.08 * SW.c;
-              SW.shake = 0.15 + 0.5 * SW.c;
+              SW.stop = 0.05 + 0.2 * SW.c;
+              SW.shake = 0.3 + 0.9 * SW.c;
               SW.halt = res.stopped;
             }
           }

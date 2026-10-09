@@ -312,7 +312,7 @@
 
     // ---------- getting hit ----------
     // blow = { energy, dir, kind: 'overhead' | 'side' | 'impact', blowout }
-    // energy is in "hits": a tap is ~0.4, a fully charged sledgehammer swing ~3.2.
+    // energy is in "hits": a sledgehammer tap is ~3.2, a full charge ~32. A thrown can is well under 1.
     // Returns { absorb: energy used up, through: punched through it?, hard: hammer bounced off? }
     hit(e, point, blow) {
       if (!blow) blow = { energy: 1, dir: this.axis === 'x' ? new THREE.Vector3(0, 0, -1) : new THREE.Vector3(-1, 0, 0), kind: 'impact' };
@@ -385,9 +385,9 @@
       if (blow.kind === 'overhead') { av = 1.35; au = 0.8; } else if (blow.kind === 'side') { au = 1.35; av = 0.8; }
       au *= 1 + (1 - cos) * Math.abs(alongU) * 1.5;
       av *= 1 + (1 - cos) * Math.abs(D.y) * 1.5;
-      const R = (0.04 + 0.11 * Math.sqrt(En)) * (e.k === 'insul' ? 1.5 : e.k === 'osb' ? 0.7 : 1) * (blow.blowout ? 1.4 : 1);
+      const R = Math.min(0.6, 0.04 + 0.11 * Math.sqrt(En)) * (e.k === 'insul' ? 1.5 : e.k === 'osb' ? 0.7 : 1) * (blow.blowout ? 1.4 : 1);
       const harm = [0, 1, 2].map(() => ({ a: 0.12 + Math.random() * 0.2, f: 2 + Math.floor(Math.random() * 5), p: Math.random() * 6.28 }));
-      const crackLen = e.k === 'gyp' ? 0.1 + 0.3 * En : 0;
+      const crackLen = e.k === 'gyp' ? Math.min(1.2, 0.1 + 0.3 * En) : 0;
       const reach = Math.max(R * 1.7 * Math.max(au, av), crackLen) + 0.06;
       const sheets = this.els.filter((s) => s.layer === e.layer && !s.broken && s.u1 > L.u - reach && s.u0 < L.u + reach && s.v1 > L.v - reach && s.v0 < L.v + reach);
       const before = new Map();
@@ -403,7 +403,7 @@
             for (const h of harm) rr *= 1 + h.a * Math.sin(ang * h.f + h.p);
             let dmg = 0;
             if (d < rr) dmg = En * 1.6 * Math.pow(1 - d / rr, 0.6) * (0.7 + Math.random() * 0.6);
-            else if (d < rr * 1.6) { dmg = En * 0.12 * Math.random(); if (e.k === 'gyp' && Math.random() < 0.5) s.cr[k] = 1; }
+            else if (d < rr * 1.6) { dmg = Math.min(En, 4) * 0.12 * Math.random(); if (e.k === 'gyp' && Math.random() < 0.5) s.cr[k] = 1; }
             s.th[k] -= dmg / s.str[k];
           }
         }
@@ -425,7 +425,7 @@
             const k = this.tileAt(s, u, v);
             if (k < 0 || s.th[k] <= 0) continue;
             s.cr[k] = 1;
-            s.th[k] -= 0.1 * En / s.str[k];
+            s.th[k] -= 0.1 * Math.min(En, 4) / s.str[k];
           }
         }
       }
@@ -513,7 +513,7 @@
         if (!set) bySheet.set(s, (set = new Set()));
         set.add(k);
       }
-      let budget = loose ? 10 : Math.round(8 + 4 * En);
+      let budget = loose ? 10 : Math.min(30, Math.round(8 + 4 * En));
       const rnd = () => Math.random() - 0.5;
       for (const [s, set] of bySheet) {
         const ks = [...set].sort(() => Math.random() - 0.5);
@@ -539,7 +539,7 @@
           if (budget-- <= 0) { GU.debris(c, PIECE_COLOR[s.k], 2, 0.8); continue; }
           const vel = loose
             ? new THREE.Vector3(rnd() * 0.6, 0, rnd() * 0.6).addScaledVector(blow.dir, 0.5)
-            : blow.dir.clone().multiplyScalar(0.8 + 3.2 * En * Math.random()).add(new THREE.Vector3(rnd() * 1.6, Math.random() * 1.4, rnd() * 1.6));
+            : blow.dir.clone().multiplyScalar((0.8 + 3.2 * Math.min(En, 3.2) * Math.random()) * Math.sqrt(Math.max(1, En / 3.2))).add(new THREE.Vector3(rnd() * 1.6, Math.random() * 1.4, rnd() * 1.6));
           const ins = s.k === 'insul';
           GU.rigid.chunk({
             pos: c, rotY: this.axis === 'z' ? Math.PI / 2 : 0,
@@ -627,6 +627,14 @@
       if (!res.through) break;
       ray.set(cur.point.clone().addScaledVector(path, 0.004), path);
       cur = GU.raycastWalls(ray, 0.45, null, 0.03, seen);
+    }
+    // a monster blow also snaps the studs around the impact, not just the one in its path
+    if (blow.energy > 6 && !hard) {
+      const r = 0.1 * Math.sqrt(blow.energy), c = hit.point;
+      for (const s of hit.wall.els.slice()) {
+        if (s.k !== 'stud' || s.broken || s.box.distanceToPoint(c) > r) continue;
+        hit.wall.studHit(s, s.box.clampPoint(c, new THREE.Vector3()), Object.assign({}, blow, { energy: blow.energy * 0.3 }));
+      }
     }
     return { hard, left: Math.max(0, E), layers: n };
   };
