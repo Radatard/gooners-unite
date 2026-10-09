@@ -15,7 +15,8 @@
     if (t) return t;
     const c = document.createElement('canvas');
     c.width = w; c.height = h;
-    const ctx = c.getContext('2d');
+    // CPU-backed canvas: GPU-backed 2D canvases can get wiped under memory pressure (→ black textures)
+    const ctx = c.getContext('2d', { willReadFrequently: true });
     ctx.imageSmoothingEnabled = false;
     draw(ctx, w, h, GU.makeRng(GU.hash(key)));
     t = new THREE.CanvasTexture(c);
@@ -267,6 +268,57 @@
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText(text.slice(0, 8), w / 2, 16);
     }
+  });
+
+  // ---- construction materials ----
+  // Kiln-dried stud lumber (SPF): pale with vertical grain.
+  T.lumber = (color) => make('lumber' + color, 16, 32, [0.2, 0.6], (ctx, w, h, rng) => {
+    const c = rgb(color || '#dcbf8a');
+    pixels(ctx, w, h, rng, (x, y, r) => {
+      const g = Math.sin(x * 1.3 + Math.sin(y * 0.2) * 1.5) * 10;
+      return jitter([c[0] + g, c[1] + g, c[2] + g * 0.6], r, 8);
+    });
+    ctx.fillStyle = 'rgba(90,60,20,0.6)'; ctx.fillRect(5, 12, 3, 2);
+  });
+  // Pink fiberglass batt insulation
+  T.insulation = () => make('insul', 32, 32, [0.4, 0.4], (ctx, w, h, rng) => {
+    pixels(ctx, w, h, rng, (x, y, r) => {
+      const s = r();
+      return s < 0.25 ? [255, 190, 205] : s > 0.85 ? [220, 120, 145] : jitter([245, 160, 180], r, 30);
+    });
+  });
+  // OSB sheathing: big pressed wood flakes
+  T.osb = () => make('osb', 32, 32, [0.5, 0.5], (ctx, w, h, rng) => {
+    ctx.fillStyle = '#c49a5a'; ctx.fillRect(0, 0, w, h);
+    for (let i = 0; i < 60; i++) {
+      ctx.fillStyle = GU.pick(rng, ['#d9b06a', '#a87b3c', '#e0c080', '#b58a48']);
+      ctx.fillRect(rng() * w, rng() * h, 3 + rng() * 7, 1 + rng() * 3);
+    }
+  });
+  // Painted concrete masonry units (cinder block)
+  T.cmu = (color) => make('cmu' + color, 32, 32, [0.4, 0.4], (ctx, w, h, rng) => {
+    const c = rgb(color || '#c8c8c0');
+    pixels(ctx, w, h, rng, (x, y, r) => {
+      const row = y >> 4, off = row % 2 ? 16 : 0;
+      const mortar = y % 16 === 0 || (x + off) % 32 === 0;
+      return mortar ? [c[0] - 40, c[1] - 40, c[2] - 40] : jitter(c, r, 18);
+    });
+  });
+  T.concrete = (dirt) => make('concrete' + (dirt || 0), 32, 32, [1, 1], (ctx, w, h, rng) => {
+    pixels(ctx, w, h, rng, (x, y, r) => jitter([150, 150, 146], r, 26));
+    grime(ctx, w, h, rng, dirt);
+  });
+  T.outlet = () => make('outlet', 8, 16, null, (ctx) => {
+    ctx.fillStyle = '#f4f1e6'; ctx.fillRect(0, 0, 8, 16);
+    ctx.fillStyle = '#3a3a3a';
+    for (const y of [3, 10]) { ctx.fillRect(2, y, 1, 2); ctx.fillRect(5, y, 1, 2); ctx.fillRect(3, y + 3, 2, 1); }
+  });
+  T.wallplate = () => make('wallplate', 8, 16, null, (ctx) => {
+    ctx.fillStyle = '#f4f1e6'; ctx.fillRect(0, 0, 8, 16);
+    ctx.fillStyle = '#dcd8cc'; ctx.fillRect(3, 5, 2, 6);
+  });
+  T.gypsum = () => make('gypsum', 32, 32, [0.6, 0.6], (ctx, w, h, rng) => {
+    pixels(ctx, w, h, rng, (x, y, r) => jitter([228, 224, 214], r, 16));
   });
 
   T.books = (seed) => make('books' + seed, 32, 16, null, (ctx, w, h, rng) => {

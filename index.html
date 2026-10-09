@@ -47,12 +47,12 @@
 
   <div id="overlay">
     <h1>GOONERS<br>UNITE</h1>
-    <div class="sub">An apartment building. Four homes. Everything is real.</div>
+    <div class="sub">An apartment building. Eight homes. Everything is real. Find the sledgehammer.</div>
     <div id="play">CLICK TO ENTER</div>
     <div class="keys">
       <span>WASD</span> move &nbsp; <span>MOUSE</span> look &nbsp; <span>SHIFT</span> run &nbsp; <span>C</span> crouch<br>
-      <span>E / CLICK</span> open, use, pick up &nbsp; <span>Q</span> drop &nbsp; <span>WHEEL / TAB / 1-9</span> switch held item<br>
-      <span>ESC</span> pause
+      <span>E</span> open, use, pick up &nbsp; <span>G / RIGHT CLICK</span> drag furniture &nbsp; <span>Q</span> drop &nbsp; <span>F</span> throw<br>
+      <span>CLICK</span> use (or swing the sledgehammer) &nbsp; <span>WHEEL / TAB / 1-9</span> switch held item &nbsp; <span>ESC</span> pause
     </div>
   </div>
   <div id="loading">LOADING...</div>
@@ -63,15 +63,21 @@
   <script src="src/engine/textures.js"></script>
   <script src="src/engine/items.js"></script>
   <script src="src/engine/furniture.js"></script>
+  <script src="src/engine/walls.js"></script>
   <script src="src/engine/build.js"></script>
+  <script src="src/engine/physics.js"></script>
   <script src="src/engine/player.js"></script>
-  <!-- World: the building, then one file per apartment -->
-  <script>GU.aptBuilders = [];</script>
+  <!-- World: floor plan, shared rooms, then one file per apartment -->
+  <script src="src/world/layout.js"></script>
   <script src="src/world/building.js"></script>
-  <script src="src/world/apt101_family.js"></script>
-  <script src="src/world/apt102_gym.js"></script>
-  <script src="src/world/apt103_widow.js"></script>
-  <script src="src/world/apt104_roommates.js"></script>
+  <script src="src/world/unit101_ramirez.js"></script>
+  <script src="src/world/unit102_derek.js"></script>
+  <script src="src/world/unit103_jess.js"></script>
+  <script src="src/world/unit104_hale.js"></script>
+  <script src="src/world/unit105_newlyweds.js"></script>
+  <script src="src/world/unit106_sam.js"></script>
+  <script src="src/world/unit107_frank.js"></script>
+  <script src="src/world/unit108_roommates.js"></script>
   <script src="src/main.js"></script>
 </body>
 </html>

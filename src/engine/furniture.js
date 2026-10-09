@@ -61,10 +61,9 @@
     }
     const dir = hingeA ? 1 : -1;
     let panel;
-    const pivot = GU.hinge(parent, px, 0, pz, angle, o.label || 'door', (p) => {
+    const pivot = GU.hinge(parent, px, o.y || 0, pz, angle, o.label || 'door', (p) => {
       if (axis === 'x') {
         panel = GU.box(p, width, h, th, dir * width / 2, 0, 0, doorMat, { solid: true });
-        GU.box(p, width * 0.7, h * 0.3, th + 0.01, dir * width / 2, 1.3, 0, GU.mat('#000', null, { transparent: true, opacity: 0.06 }));
         for (const s of [-1, 1]) GU.sphere(p, 0.03, dir * (width - 0.08), 1.0, s * 0.05, knobMat);
         if (o.number) GU.box(p, 0.16, 0.08, 0.01, dir * width / 2, 1.6, -swing * 0.03, GU.mat('#ffffff', GU.tex.label('#d4af37', null, o.number, '#3b2412')), { unitUV: true });
       } else {
@@ -116,6 +115,7 @@
         const hy = o.handleY != null ? o.handleY : (y > 1 ? 0.08 : h - 0.12);
         GU.box(p, 0.015, 0.1, 0.02, sign * (dw - 0.04), hy, 0.03, handle);
       }, { speed: 4 }));
+      pivots[pivots.length - 1].userData.breakable = { hp: 2, mat: o.glass ? 'glass' : 'wood', color: o.debris || '#c9a27a', name: label + ' door', door: true };
     };
     if (doors === 1) {
       if (o.hinge === 'right') makeDoor(w / 2, w, -1); else makeDoor(-w / 2, w, 1);
@@ -494,7 +494,7 @@
     for (const sx of [-1, 1]) GU.box(g, 0.04, 0.72, d - 0.04, sx * (w / 2 - 0.02), 0, 0, mat, { solid: true });
     GU.drawers(g, w / 2 - 0.25, 0.47, 0, 0, { w: 0.42, h: 0.24, d: d - 0.06, count: 1, mat, label: 'desk drawer', contents: [o.drawer || []], top: false, solid: false });
     GU.placeItems(g, 0, 0.76, 0, w - 0.1, d - 0.1, o.top || [], { gap: 0.04 });
-    if (o.chair !== false) GU.chair(g, 0, 0.6, Math.PI, { color: o.chairColor || '#222' });
+    if (o.chair !== false) GU.chairNear(parent, x, z, ry, 0, 0.6, Math.PI, { color: o.chairColor || '#222' });
     return g;
   };
 
@@ -519,7 +519,7 @@
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) GU.box(g, 0.05, h - 0.04, 0.05, sx * (w / 2 - 0.06), 0, sz * (d / 2 - 0.06), mat, { solid: true });
     if (o.cloth) GU.box(g, w + 0.06, 0.005, d + 0.06, 0, h, 0, GU.mat('#ffffff', o.cloth));
     GU.placeItems(g, 0, h + 0.006, 0, w - 0.1, d - 0.1, o.top || [], { gap: o.gap || 0.05, jitter: o.jitter });
-    (o.chairs || []).forEach(([cx, cz, cr]) => GU.chair(g, cx, cz, cr, { mat: o.chairMat || mat, small: o.small }));
+    (o.chairs || []).forEach(([cx, cz, cr]) => GU.chairNear(parent, x, z, ry, cx, cz, cr, { mat: o.chairMat || mat, small: o.small }));
     return g;
   };
 
@@ -744,4 +744,102 @@
     GU.interactive(g, 'Check the time', () => { const d = new Date(); GU.say('It\'s ' + d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + '.'); });
     return g;
   };
+
+  // A chair placed relative to a table/desk at (x, z, ry), but as its own object so it moves separately.
+  GU.chairNear = function (parent, x, z, ry, cx, cz, cr, o) {
+    const c = Math.cos(ry || 0), s = Math.sin(ry || 0);
+    return GU.chair(parent, x + c * cx + s * cz, z - s * cx + c * cz, (ry || 0) + cr, o);
+  };
+
+  // Stacked front-load washer (bottom) + dryer (top), like in most apartment laundry closets.
+  GU.washerDryer = function (parent, x, z, ry, o) {
+    o = o || {};
+    const g = GU.group(parent, x, 0, z, ry);
+    const body = GU.mat('#ffffff', GU.tex.paint('#f4f5f7'));
+    const unit = (y0, label, contents, glass) => {
+      const w = 0.68, h = 0.85, d = 0.7;
+      GU.box(g, w, h, 0.03, 0, y0, -d / 2, body);
+      GU.box(g, 0.03, h, d, -w / 2, y0, 0, body);
+      GU.box(g, 0.03, h, d, w / 2, y0, 0, body);
+      GU.box(g, w, 0.03, d, 0, y0 + h - 0.03, 0, body);
+      GU.box(g, w, 0.03, d, 0, y0, 0, body);
+      GU.box(g, w, 0.12, 0.02, 0, y0 + h - 0.15, d / 2 - 0.01, body);
+      GU.box(g, 0.1, 0.04, 0.01, 0.2, y0 + h - 0.11, d / 2, GU.glow('#30ff60'));
+      GU.cyl(g, 0.24, 0.24, 0.45, 0, y0 + 0.1, 0, M('#9ea7ad'), { rx: Math.PI / 2, open: true }).position.set(0, y0 + 0.4, 0.05);
+      const stuff = GU.group(g);
+      GU.placeItems(stuff, 0, y0 + 0.18, 0.05, 0.36, 0.36, contents || [], { gap: 0, jitter: 2 });
+      const door = GU.hinge(g, -w / 2 + 0.05, y0 + 0.4, d / 2 + 0.01, -Math.PI * 0.55, label, (p) => {
+        GU.cyl(p, 0.22, 0.22, 0.04, 0.26, 0, 0, M('#d0d4d8'), { rx: Math.PI / 2, seg: 14 }).position.set(0.26, 0, 0.02);
+        GU.cyl(p, 0.16, 0.16, 0.045, 0.26, 0, 0, GU.mat(glass, null, { transparent: true, opacity: 0.55 }), { rx: Math.PI / 2, seg: 14 }).position.set(0.26, 0, 0.03);
+      });
+      GU.hideWhenClosed(stuff, [door]);
+    };
+    unit(0, 'washer', o.washer || ['laundry_pile'], '#9fd4ff');
+    unit(0.87, 'dryer', o.dryer || ['towel'], '#2b2b2b');
+    GU.blocker(g, 0.68, 1.72, 0.7, 0, 0, 0).userData.noRay = true;
+    return g;
+  };
+
+  // Built-in reach-in closet: shelf, hanging rod with clothes, shoes on the floor.
+  GU.builtinCloset = function (parent, x, z, ry, w, o) {
+    o = o || {};
+    const g = GU.cabinet(parent, x, 0, z, ry, { w, h: 2.1, d: 0.62, shelves: 1, label: 'closet', mat: o.mat || GU.mat('#ffffff', GU.tex.paint('#f4f1e6')), inner: GU.mat('#f4f1e6'), contents: [o.floor || [], o.shelf || []], debris: '#f4f1e6' });
+    g.children.find((c) => c.userData.mergeRoot) || null;
+    const colors = o.clothes || ['#3a86ff', '#ff4d6d', '#f4f4f4', '#222222'];
+    const n = Math.floor((w - 0.1) / 0.075);
+    for (let i = 0; i < n; i++) {
+      GU.box(g, 0.03, 0.65 - (i % 3) * 0.08, 0.42, -w / 2 + 0.08 + i * 0.075, 1.05 - 0.7 + (i % 3) * 0.08, 0, GU.mat('#ffffff', GU.tex.fabric(colors[i % colors.length])));
+    }
+    GU.cyl(g, 0.012, 0.012, w - 0.06, 0, 0, 0, M('#c0c0c0'), { rz: Math.PI / 2 }).position.set(0, 0.99, 0);
+    return g;
+  };
+
+  // ---------- what can be dragged (G) and what the sledgehammer can wreck ----------
+  // Wrap the builders so every piece of furniture gets tagged in one place.
+  const tag = (name, opts) => {
+    const f = GU[name];
+    GU[name] = function () {
+      const g = f.apply(this, arguments);
+      if (g) GU.prop(g, typeof opts === 'function' ? opts(arguments) : opts);
+      return g;
+    };
+  };
+  tag('fridge', { move: 110, name: 'fridge', tough: 'You put a dent in the fridge. It keeps humming.' });
+  tag('stove', { name: 'stove', tough: 'Enameled steel. The stove clangs but it\'s fine. (It\'s hooked to the gas line.)' });
+  tag('microwave', { move: 15, hp: 3, mat: 'metal', color: '#2b2b2b', name: 'microwave' });
+  tag('toaster', { move: 3, hp: 2, mat: 'metal', color: '#c9ced4', name: 'toaster' });
+  tag('coffeeMaker', { move: 4, hp: 2, mat: 'plastic', color: '#1a1a1a', name: 'coffee maker' });
+  tag('knifeBlock', { move: 3, hp: 2, color: '#8b5a2b', name: 'knife block' });
+  tag('toilet', { hp: 3, mat: 'porcelain', color: '#fbfbfb', name: 'toilet', leak: true });
+  tag('bathtub', { tough: 'CLANG. Cast iron tub. Your arms are vibrating.' });
+  tag('vanity', { hp: 5, color: '#c9a27a', name: 'vanity', leak: true });
+  tag('bed', { move: 60, hp: 8, color: '#7a4b2a', name: 'bed' });
+  tag('nightstand', { move: 15, hp: 3, color: '#7a4b2a', name: 'nightstand' });
+  tag('dresser', { move: 50, hp: 6, color: '#7a4b2a', name: 'dresser' });
+  tag('wardrobe', { move: 60, hp: 6, color: '#7a4b2a', name: 'wardrobe' });
+  tag('builtinCloset', { hp: 6, color: '#f4f1e6', name: 'closet' });
+  tag('lamp', { hp: 1, mat: 'glass', color: '#fff1c4', name: 'lamp' });
+  tag('floorLamp', { move: 5, hp: 2, mat: 'metal', color: '#2b2b2b', name: 'floor lamp' });
+  tag('desk', { move: 30, hp: 5, color: '#a8835a', name: 'desk' });
+  tag('chair', { move: 5, hp: 3, color: '#7a4b2a', name: 'chair' });
+  tag('table', { move: 25, hp: 5, color: '#9c6b3f', name: 'table' });
+  tag('bookshelf', { move: 40, hp: 5, color: '#7a4b2a', name: 'bookshelf' });
+  tag('sofa', (a) => ({ move: 45, hp: 6, mat: 'fabric', color: (a[4] && a[4].color) || '#3f6e8c', name: 'couch' }));
+  tag('tv', { move: 8, hp: 2, mat: 'glass', color: '#111111', name: 'TV' });
+  tag('tvStand', { move: 25, hp: 5, color: '#7a4b2a', name: 'TV stand' });
+  tag('art', { mount: true, move: 2, hp: 1, mat: 'glass', color: '#2b1d12', name: 'picture frame' });
+  tag('plant', { move: 10, hp: 2, mat: 'porcelain', color: '#c1440e', name: 'potted plant' });
+  tag('trashCan', { move: 5, hp: 2, mat: 'metal', color: '#9ea7ad', name: 'trash can' });
+  tag('laundryBasket', { move: 2, hp: 1, mat: 'plastic', color: '#f4f4f4', name: 'laundry basket' });
+  tag('wallShelf', { mount: true, hp: 2, color: '#c9a27a', name: 'shelf' });
+  tag('toyChest', { move: 15, hp: 4, color: '#5ab4ff', name: 'toy chest' });
+  tag('weightBench', { move: 30, name: 'weight bench', tough: 'Steel frame. Not even a scratch.' });
+  tag('squatRack', { move: 150, name: 'squat rack', tough: '11-gauge steel. The hammer bounces back at you.' });
+  tag('dumbbellRack', { move: 80, name: 'dumbbell rack', tough: 'Steel rack. Nope.' });
+  tag('cat', { tough: 'No. You would never hurt the cat.' });
+  tag('coatHooks', { mount: true, hp: 1, color: '#8b5a2b', name: 'coat rack' });
+  tag('radiator', { tough: 'Cast iron radiator. CLANG.' });
+  tag('wallClock', { mount: true, hp: 1, mat: 'glass', color: '#222222', name: 'clock' });
+  tag('washerDryer', { move: 90, name: 'washer/dryer', tough: 'You dent the dryer door. It still works.' });
+  tag('rug', { move: 4, name: 'rug' });
 })();

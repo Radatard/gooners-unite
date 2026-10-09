@@ -4,6 +4,7 @@
   renderer.setPixelRatio(1);
   document.getElementById('game').appendChild(renderer.domElement);
   const canvas = renderer.domElement;
+  GU.renderer = renderer;
 
   const scene = (GU.scene = new THREE.Scene());
   scene.background = new THREE.Color('#140f24');
@@ -28,26 +29,35 @@
   GU.hand = GU.group(handScene, 0.2, -0.17, -0.5);
 
   // ---- build everything ----
-  GU.buildBuilding();
-  GU.aptBuilders.forEach((build) => build());
-  GU.buildColliders(GU.world);
+  GU.buildLayout();             // rooms, walls (with openings), floors, lights, doors, windows
+  GU.buildBuilding();           // shared rooms: stairs, lobby, maintenance...
+  for (const u of GU.units) u.def.build(u); // furnish each apartment
+  GU.buildWalls();              // wall layers -> colliders + meshes
+  GU.mountProps(GU.world);      // pictures etc. fall when the drywall behind them breaks
+  GU.buildColliders(GU.world);  // furniture
+  GU.indexColliders();
   GU.mergeStatic(GU.building);
-  for (const a of GU.apartments) { GU.mergeStatic(a.content); GU.mergeStatic(a.shell); }
+  for (const u of GU.units) { GU.mergeStatic(u.g); GU.mergeStatic(u.shell); }
 
-  // A small fixed pool of real lights, moved to the nearest room lights each frame.
-  GU.scene.updateMatrixWorld(true);
-  for (const v of GU.virtualLights) v.world.copy(v.local).applyMatrix4(v.parent.matrixWorld);
+  // A small fixed pool of real lights, moved to the nearest lit room lights each frame.
+  scene.updateMatrixWorld(true);
+  for (const v of GU.virtualLights) if (!v.fixed) v.world.copy(v.local).applyMatrix4(v.parent.matrixWorld);
   const pool = [];
   for (let i = 0; i < 6; i++) {
     const l = new THREE.PointLight('#ffffff', 0, 9, 1.6);
     scene.add(l);
     pool.push(l);
   }
+  const player = (GU.player = new GU.Player(camera));
+  player.pos.set(0, 0, -8.5);
+  player.yaw = Math.PI;
   function lights() {
     const p = player.pos;
-    const sorted = GU.virtualLights.filter((v) => v.on).sort((a, b) => a.world.distanceToSquared(p) - b.world.distanceToSquared(p));
+    const lit = [];
+    for (const v of GU.virtualLights) { v.refresh(); if (v.lit) lit.push(v); }
+    lit.sort((a, b) => a.world.distanceToSquared(p) - b.world.distanceToSquared(p));
     pool.forEach((l, i) => {
-      const v = sorted[i];
+      const v = lit[i];
       if (!v) { l.intensity = 0; return; }
       l.position.copy(v.world);
       l.color.copy(v.color);
@@ -56,11 +66,6 @@
     });
   }
 
-  const player = (GU.player = new GU.Player(camera));
-  GU.renderer = renderer;
-  player.pos.set(19.5, 0, -1.5);
-  player.yaw = Math.PI / 2 + 0.25;
-
   // Only the parts of the world you could possibly see are drawn / clickable.
   const probe = new THREE.Vector3();
   let roots = [];
@@ -68,14 +73,28 @@
   function cull() {
     probe.set(player.pos.x, player.pos.y + 1, player.pos.z);
     roots = [GU.building, GU.dropped];
-    for (const a of GU.apartments) {
-      const inside = a.bounds.containsPoint(probe);
-      const open = a.door.userData.state.t > 0.001;
-      a.content.visible = inside || (open && a.bounds.distanceToPoint(probe) < 30);
-      roots.push(a.shell);
-      if (a.content.visible) roots.push(a.content);
+    for (const u of GU.units) {
+      const inside = u.bounds.containsPoint(probe);
+      const st = u.door && u.door.userData.state;
+      const open = !u.door || !u.door.parent || (st && st.t > 0.001);
+      // a smashed-through wall also lets you see inside
+      const near = u.bounds.distanceToPoint(probe) < 8;
+      const vis = inside || (open && u.bounds.distanceToPoint(probe) < 30) || (near && u.breached);
+      u.g.visible = vis;
+      const ch = GU.wallChunks.get('u' + u.number);
+      if (ch) ch.group.visible = vis;
+      roots.push(u.shell);
+      if (vis) roots.push(u.g);
     }
   }
+  // once any wall of a unit is opened up, keep its insides visible when you're close
+  GU.updaters.push(() => {
+    for (const w of GU.walls) {
+      if (!w.anyBroken || w.flagged) continue;
+      w.flagged = true;
+      for (const r of [w.neg, w.pos]) if (r && r.unit) r.unit.breached = true;
+    }
+  });
 
   // ---- zone label ----
   let zoneName = '', zoneTime = 0;
@@ -119,7 +138,9 @@
     last = now;
     cull();
     player.update(dt);
+    GU.physicsUpdate(dt, player);
     for (const u of GU.updaters) u(dt);
+    GU.updateWalls();
     lights();
     zones(dt);
     player.hud();
@@ -133,7 +154,7 @@
   }
   // Compile every shader now (while LOADING is up) instead of stuttering the first time you see something.
   setTimeout(() => {
-    GU.apartments.forEach((a) => { a.content.visible = true; });
+    for (const u of GU.units) u.g.visible = true;
     lights();
     renderer.compile(scene, camera);
     renderer.compile(handScene, handCam);

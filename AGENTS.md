@@ -9,15 +9,25 @@ Several friends edit this game, each with their own AI (Claude, ChatGPT, Copilot
 - All textures are generated in code (`src/engine/textures.js`), so there are no image files.
 - Layout:
   - `index.html`: page shell, HUD, and the list of script tags (order matters)
-  - `src/engine/core.js`: shared state, materials, geometry helpers, PS1 shader, static mesh merging
-  - `src/engine/textures.js`: procedural textures (wood, tile, wallpaper, labels...)
+  - `src/engine/core.js`: shared state, materials, geometry helpers, PS1 shader, collision grid, static mesh merging, `GU.prop` (movable/breakable tags)
+  - `src/engine/textures.js`: procedural textures (wood, tile, wallpaper, lumber, insulation, labels...)
   - `src/engine/items.js`: the household item catalog (`CATALOG`) and item models. Add new items here.
-  - `src/engine/furniture.js`: furniture, appliances, doors, cabinets, drawers
-  - `src/engine/build.js`: walls/floors/windows/lights and the standard apartment floor plan, kitchen and bathroom
+  - `src/engine/furniture.js`: furniture, appliances, doors, cabinets, drawers. The `tag(...)` list at the bottom says what can be dragged and smashed.
+  - `src/engine/walls.js`: realistic layered, destructible walls (see "How walls work")
+  - `src/engine/build.js`: floors, ceilings, doors, windows, lights/circuits/switches/breaker panels, and the `Unit` class (kitchen/bath/laundry builders)
+  - `src/engine/physics.js`: falling, throwing, dragging furniture, smashing, debris, sounds, the sledgehammer
   - `src/engine/player.js`: movement, collision, interaction, inventory
-  - `src/world/building.js`: hallway, lobby, stairs
-  - `src/world/aptXXX_*.js`: one file per apartment (who lives there and everything in it)
-  - `src/main.js`: renderer, lighting, game loop
+  - `src/world/layout.js`: the floor plan: apartment templates (studio / 1 bed / 2 bed), where each unit goes, shared rooms
+  - `src/world/building.js`: contents of the shared rooms (stairs, lobby, maintenance, laundry...)
+  - `src/world/unitXXX_*.js`: one file per apartment: who lives there, colors, and everything in it
+  - `src/main.js`: startup order, renderer, lighting, culling, game loop
+
+## How walls work
+
+- Walls are never placed by hand. `layout.js` generates them from the room rectangles, and picks the real-world assembly from who is on each side: partition, plumbing wall, 1-hour corridor wall, double-stud demising wall between units, exterior wall (brick veneer, unbreakable), or concrete block around stairs and the elevator.
+- Each wall is made of elements: drywall panels on each side, 2x4 or 2x6 studs at 16" on center (split into breakable sections), king and jack studs plus headers at openings, plates, insulation, Romex wiring and outlet boxes, and PEX/PVC pipes in plumbing walls. Every element has hit points and its own collision box.
+- Doors and windows are openings: add them in a template's `doors` / `windows`, or in `COMMON_DOORS` / `COMMON_WINDOWS` in `layout.js`.
+- Cutting a wire kills that room's circuit (lights off). Each unit has a breaker panel, and the electrical room has the building's main disconnect.
 
 ## Performance rules (important: some of us have weak laptop GPUs)
 
@@ -28,8 +38,10 @@ Several friends edit this game, each with their own AI (Claude, ChatGPT, Copilot
 
 ## Adding stuff
 
-- New item: add one line to `CATALOG` in `src/engine/items.js`, then use its id in an apartment's contents lists.
-- New apartment or floor: copy an existing `src/world/apt*.js`, give it a new `number`, `x0` and `side`, and add its `<script>` tag to `index.html` before `src/main.js`.
+- New item: add one line to `CATALOG` in `src/engine/items.js`, then use its id in an apartment's contents lists. Every item can automatically be picked up, dropped, thrown and smashed.
+- New furniture: build it in its own group facing local +z, then tag it with `GU.prop(group, { move: kg, hp: hits, mat, name })` so it can be dragged (G) and smashed. Use `tough: 'message'` for things that can't break. Use `mount: true` for things hung on walls (they fall when the drywall behind breaks).
+- New apartment: add a line to `PLAN` in `layout.js` (template + position), copy a `src/world/unit*.js` file, and add its `<script>` tag to `index.html` before `src/main.js`. Positions in a unit file are in template coordinates: x across the unit, z from the corridor (0) to the windows (10).
+- Test without a browser: the build should run with no console errors. Watch for `[Layout]` warnings, which mean a door or window didn't land in a wall.
 
 ## Before you change anything
 

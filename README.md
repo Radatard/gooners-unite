@@ -2,20 +2,42 @@
 
 A first-person, PS1-style exploration game set inside an apartment building, built together by a group of friends, each using their own AI.
 
-The first floor has a lobby, an inside staircase, a hallway and four apartments, each with different people living in it:
+The first floor is laid out like a real mid-rise apartment building. Units sit on both sides of a 6 ft corridor, with an enclosed stairwell at each end. There's a lobby with a mail alcove and a broken elevator, plus trash, electrical, laundry, maintenance and bike rooms. Eight apartments, each with different people living in it:
 
-- **101, the Ramirez family**: parents and 7-year-old Lily. Clean, busy, toys everywhere.
-- **102, Derek**: lives alone and turned his spare room into a home gym. The gym is spotless, the rest isn't.
-- **103, Mrs. Hale**: a retired widow with a cat named Biscuit and a sewing room. Spotless.
-- **104, Priya & Kevin**: grad-student roommates. Disgusting.
+| Apt | Type | Who lives there |
+|---|---|---|
+| 101 | 2 bed / 2 bath | The Ramirez family: parents and 7-year-old Lily. Clean, busy, toys everywhere. |
+| 102 | 2 bed / 2 bath | Derek. The spare bedroom is a home gym. The gym is spotless, the rest isn't. |
+| 103 | Studio | Jess, an ER nurse on night shift. Blackout curtains, scrubs, a lot of coffee. |
+| 104 | 1 bed | Mrs. Hale, a retired widow, and Biscuit the cat. Spotless. |
+| 105 | 1 bed | Marcus & Tasha, newlyweds. Moving boxes and unopened wedding gifts. |
+| 106 | 1 bed | Sam, a painter. The living room is an art studio. |
+| 107 | 1 bed | Frank, a hoarder. Newspaper stacks and boxes to the ceiling. |
+| 108 | 2 bed / 2 bath | Priya & Kevin, grad-student roommates. Disgusting. |
 
-Every fridge, freezer, pantry, cabinet, drawer and medicine cabinet opens, and is stocked with real household stuff you can pick up: food, spices, cleaning chemicals, knives, toiletries, toys, gym gear and more.
+**Everything is real:**
+- **Storage and items:** every fridge, freezer, pantry, cabinet, drawer, closet, washer and medicine cabinet opens. They're stocked with ~300 kinds of household stuff, and every item can be picked up, dropped, thrown and smashed.
+- **Furniture:** you can drag it around with real collision.
+- **Walls:** built in layers like real wood-frame walls: drywall, studs at 16" on center, headers over doors, insulation, wiring through the studs to outlet boxes, and water/drain pipes in bathroom and kitchen walls.
+- **The sledgehammer:** find it in the maintenance room. Smash through drywall, studs and insulation to get between rooms and apartments. Cut a wire and that room's lights die. Break a pipe and it floods. Brick and concrete block won't break.
+- **Electrical:** each apartment has a breaker panel, and the electrical room has the building's main disconnect.
 
 ## Play
 
 Live: https://radatard.github.io/gooners-unite/ (or open `index.html` locally).
 
-Controls: **WASD** move, **mouse** look, **Shift** run, **C** crouch, **E / click** open, use or pick up, **Q** drop, **mouse wheel / Tab / 1-9** switch held item, **Esc** pause.
+Controls:
+
+| Key | Action |
+|---|---|
+| **WASD** / **mouse** | Move / look |
+| **Shift** / **C** | Run / crouch |
+| **E** | Open, use, pick up |
+| **G** or right-click | Drag furniture |
+| **Q** / **F** | Drop / throw what you're holding |
+| **Click** | Use, or swing the sledgehammer |
+| **Wheel / Tab / 1-9** | Switch held item |
+| **Esc** | Pause |
 
 ## Join in and edit
 

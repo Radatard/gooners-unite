@@ -338,6 +338,23 @@
     ['nightlight', 'Night Light', 'box', [0.06, 0.08, 0.03], ['#fff59d', null], '', 'Star-shaped night light.'],
     ['cat_toy', 'Cat Toy Mouse', 'fruit', [0.025], ['#9e9e9e'], '', 'Catnip mouse, well loved.'],
 
+    // ---- tools (maintenance room) ----
+    ['sledgehammer', 'Sledgehammer', 'custom_sledge', [], ['#c62828'], '', '10 lb sledgehammer. Left-click to swing. Breaks drywall, studs, furniture... almost anything.'],
+    ['claw_hammer', 'Claw Hammer', 'custom_hammer', [], ['#1d4ed8'], '', '16 oz claw hammer.'],
+    ['screwdriver', 'Screwdriver', 'utensil', [0.22], ['#ffd60a'], 'knife', 'Phillips #2 screwdriver.'],
+    ['wrench', 'Pipe Wrench', 'utensil', [0.35], ['#c62828'], 'tongs', '14" pipe wrench.'],
+    ['drill', 'Cordless Drill', 'custom_drill', [], ['#ffd60a'], '', '20V cordless drill. Battery at one bar.'],
+    ['tape_measure', 'Tape Measure', 'box', [0.07, 0.07, 0.04], ['#ffd60a', null], '', '25 ft tape measure.'],
+    ['stud_finder', 'Stud Finder', 'box', [0.07, 0.15, 0.03], ['#ff8f1f', '#1f1f1f'], 'STUD', 'Beeps when it finds a stud. Studs are every 16 inches.'],
+    ['utility_knife', 'Utility Knife', 'knife', [0.17], ['#c9ced4', '#ffd60a'], '', 'For scoring drywall.'],
+    ['paint_can', 'Paint Can', 'can', [0.085, 0.19], ['#c9ced4', '#efe7d8'], 'PAINT', '1 gallon of "Landlord Beige" eggshell paint.'],
+    ['spackle', 'Spackle', 'tub', [0.06, 0.08], ['#ffffff', '#1d4ed8', '#1d4ed8'], 'SPACKLE', 'For patching drywall holes. You\'ll need a lot.'],
+    ['light_bulbs', 'Light Bulbs', 'box', [0.2, 0.12, 0.07], ['#1d4ed8', '#ffd60a'], 'LED', '4-pack of 60W-equivalent LED bulbs.'],
+    ['duct_tape_pro', 'Electrical Tape', 'roll', [0.03, 0.02], ['#111111'], '', 'Black electrical tape.'],
+    ['wire_nuts', 'Wire Nuts', 'box', [0.08, 0.04, 0.05], ['#ffd60a', '#c62828'], 'NUTS', 'Box of wire connectors.'],
+    ['romex', 'Romex Cable (14/2)', 'roll', [0.12, 0.08], ['#f2f2ee'], '', '250 ft of 14/2 NM-B cable for 15A circuits.'],
+    ['mop', 'Mop', 'utensil', [1.3], ['#c49a6c'], 'spatula', 'A mop that has seen things.'],
+
     // ---- gym ----
     ['dumbbell_light', 'Dumbbell (15 lb)', 'dumbbell', [0.3, 0.05], ['#1f1f1f'], '', '15 lb hex dumbbell.'],
     ['dumbbell', 'Dumbbell (35 lb)', 'dumbbell', [0.35, 0.07], ['#1f1f1f'], '', '35 lb hex dumbbell.'],
@@ -356,6 +373,13 @@
     ['gym_towel', 'Gym Towel', 'flat', [0.3, 0.03, 0.2], ['#9e9e9e'], '', 'Sweaty gym towel.'],
     ['headband', 'Headband', 'flat', [0.1, 0.02, 0.1], ['#ff1744'], '', 'Sweatband.'],
   ];
+
+  const MATERIAL = {
+    wine: 'glass', jar: 'glass', glass: 'glass', candle: 'wood', plate: 'porcelain', bowl: 'porcelain', mug: 'porcelain',
+    can: 'metal', dumbbell: 'metal', kettlebell: 'metal', weight: 'metal', knife: 'metal', scissors: 'metal', utensil: 'metal',
+    custom_hammer: 'metal', custom_sledge: 'metal', fruit: 'fabric', banana: 'fabric', clothes: 'fabric', pile: 'fabric',
+    teddy: 'fabric', box: 'paper', bag: 'paper', book: 'paper', pizzabox: 'paper', flat: 'fabric', block: 'wood', plant: 'porcelain',
+  };
 
   GU.CATALOG = {};
   for (const r of CATALOG) {
@@ -609,6 +633,25 @@
       GU.cyl(g, 0.01, 0.01, 0.3, 0, 0.1, 0, M('#e0e0e0'));
       return [0.11, 0.11];
     },
+    custom_sledge(g) {
+      const h = GU.cyl(g, 0.018, 0.022, 0.86, 0, 0.05, 0, M('#d7b98e'), { rz: Math.PI / 2 });
+      h.position.set(0, 0.05, 0);
+      GU.box(g, 0.08, 0.08, 0.18, 0.47, 0.01, 0, GU.mat('#ffffff', GU.tex.metal('#3a3a3a')));
+      GU.box(g, 0.06, 0.05, 0.04, -0.4, 0.025, 0, M('#c62828'));
+      return [1.0, 0.18];
+    },
+    custom_hammer(g, s, c) {
+      const h = GU.cyl(g, 0.012, 0.014, 0.3, 0, 0.02, 0, M(c[0]), { rz: Math.PI / 2 });
+      h.position.set(0, 0.02, 0);
+      GU.box(g, 0.03, 0.03, 0.11, 0.16, 0.005, 0, GU.mat('#ffffff', GU.tex.metal('#9ea7ad')));
+      return [0.36, 0.11];
+    },
+    custom_drill(g, s, c) {
+      GU.box(g, 0.2, 0.07, 0.06, 0, 0.12, 0, M(c[0]));
+      GU.box(g, 0.05, 0.13, 0.05, -0.05, 0, 0, M('#1f1f1f'));
+      GU.cyl(g, 0.006, 0.006, 0.08, 0.13, 0.15, 0, M('#9ea7ad'), { rz: Math.PI / 2 }).position.set(0.14, 0.155, 0);
+      return [0.26, 0.07];
+    },
     custom_dryer(g, s, c) {
       GU.cyl(g, 0.04, 0.035, 0.2, 0, 0.04, 0, M(c[0]), { rz: Math.PI / 2 });
       GU.box(g, 0.035, 0.12, 0.04, -0.05, 0, 0, M(c[0]));
@@ -627,6 +670,10 @@
     g.userData.footprint = fp;
     g.userData.item = d;
     GU.interactive(g, () => 'Take ' + d.name, () => GU.player && GU.player.pickUp(g), () => d.desc);
+    // everything can be smashed; what it's made of decides the sound, debris and mess
+    const mat = MATERIAL[d.shape] || 'plastic';
+    const liquid = /jug|bottle|wine|spray/.test(d.shape) || (d.shape === 'can' && !/crushed|tuna|cat_food|soup|beans|tomatoes|oven|bug|furniture|air|shaving|paint/.test(id));
+    if (d.id !== 'sledgehammer') g.userData.breakable = { hp: d.size[0] > 0.3 ? 2 : 1, mat, color: d.colors[0] || '#cccccc', name: d.name, leak: liquid ? 'small' : false, item: true };
     return g;
   };
 

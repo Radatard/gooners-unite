@@ -147,13 +147,101 @@ GU.group = function (parent, x, y, z, ry) {
   return g;
 };
 
-// After the world is built, turn every `solid` mesh into a world-space collision box.
+// Tag a furniture group: move = mass in kg (can be dragged with G), hp = hammer hits to destroy,
+// mat = 'wood' | 'glass' | 'porcelain' | 'metal' | 'fabric' | 'plastic' (sounds + debris),
+// tough = message when it can't be broken, leak = breaking it floods the floor.
+GU.prop = function (g, o) {
+  g.userData.mergeRoot = true;
+  if (o.move) g.userData.movable = { mass: o.move, name: o.name };
+  if (o.hp) g.userData.breakable = { hp: o.hp, mat: o.mat || 'wood', color: o.color || '#8b5a2b', name: o.name, leak: o.leak };
+  if (o.tough) g.userData.tough = o.tough;
+  if (o.mount) g.userData.wallMounted = true;
+  if (o.name) g.userData.name = o.name;
+  return g;
+};
+
+// ---------- collision ----------
+// Static colliders live in a 1 m grid so the player only tests nearby boxes.
+// Movable furniture has dynamic colliders that update when dragged.
+GU.dynColliders = [];
+const CELL = 1;
+GU.colGrid = new Map();
+GU.indexColliders = function () {
+  GU.colGrid.clear();
+  for (const c of GU.colliders) {
+    const b = c.box;
+    for (let x = Math.floor(b.min.x / CELL); x <= Math.floor(b.max.x / CELL); x++) {
+      for (let z = Math.floor(b.min.z / CELL); z <= Math.floor(b.max.z / CELL); z++) {
+        const k = x * 100003 + z;
+        let list = GU.colGrid.get(k);
+        if (!list) GU.colGrid.set(k, (list = []));
+        list.push(c);
+      }
+    }
+  }
+};
+let stamp = 0;
+// Every enabled collider whose box overlaps the given box (y range included).
+GU.queryColliders = function (min, max, ignore) {
+  stamp++;
+  const out = [];
+  for (let x = Math.floor(min.x / CELL); x <= Math.floor(max.x / CELL); x++) {
+    for (let z = Math.floor(min.z / CELL); z <= Math.floor(max.z / CELL); z++) {
+      const list = GU.colGrid.get(x * 100003 + z);
+      if (!list) continue;
+      for (const c of list) {
+        if (c.stamp === stamp) continue;
+        c.stamp = stamp;
+        out.push(c);
+      }
+    }
+  }
+  for (const c of GU.dynColliders) out.push(c);
+  return out.filter((c) => {
+    if (ignore && c.owner && ignore(c.owner)) return false;
+    if (c.enabled && !c.enabled()) return false;
+    const b = c.box;
+    return b.max.x > min.x && b.min.x < max.x && b.max.y > min.y && b.min.y < max.y && b.max.z > min.z && b.min.z < max.z;
+  });
+};
+
+function nearest(o, key, stop) {
+  for (let p = o.parent; p && p !== stop; p = p.parent) if (p.userData[key]) return p;
+  return null;
+}
+
+// After the world is built: solid meshes become static colliders, movable groups get one dynamic
+// collider each (their whole bounding box). Colliders of breakable things switch off when smashed.
 GU.buildColliders = function (root) {
   root.updateMatrixWorld(true);
-  root.traverse((o) => {
-    if (o.isMesh && o.userData.solid) {
-      GU.colliders.push({ box: new THREE.Box3().setFromObject(o), enabled: o.userData.enabledFn || null });
+  const walk = (o, insideMovable) => {
+    if (o.userData.movable) {
+      const box = new THREE.Box3().setFromObject(o);
+      box.expandByScalar(-0.01);
+      const owner = o;
+      const c = { box, owner, enabled: () => !owner.userData.broken && GU.isShown(owner) };
+      o.userData.collider = c;
+      GU.dynColliders.push(c);
+      insideMovable = true;
+    } else if (o.isMesh && o.userData.solid && !insideMovable) {
+      const brk = o.userData.breakable ? o : nearest(o, 'breakable', root);
+      const fn = o.userData.enabledFn;
+      GU.colliders.push({
+        box: new THREE.Box3().setFromObject(o), owner: brk,
+        enabled: () => (!fn || fn()) && !(brk && brk.userData.broken),
+      });
     }
+    for (const c of o.children) walk(c, insideMovable);
+  };
+  walk(root, false);
+};
+
+// Recompute the collider of a moved group (and any movable things sitting on it).
+GU.refreshCollider = function (g) {
+  g.updateMatrixWorld(true);
+  g.traverse((o) => {
+    const c = o.userData.collider;
+    if (c) { c.box.setFromObject(o); c.box.expandByScalar(-0.01); }
   });
 };
 
@@ -171,7 +259,7 @@ GU.mergeStatic = function (root) {
   const inv = new THREE.Matrix4(), m = new THREE.Matrix4(), nm = new THREE.Matrix3();
   const v = new THREE.Vector3();
   root.traverse((o) => {
-    if (!o.isMesh || !o.visible || o.userData.noMerge || walk.has(o)) return;
+    if (!o.isMesh || !o.visible || o.userData.noMerge || o.userData.movable || o.userData.breakable || o.userData.surface || walk.has(o)) return;
     let b = o.parent;
     while (b !== root && !b.userData.interact && !b.userData.mergeRoot) b = b.parent;
     const geo = o.geometry;
