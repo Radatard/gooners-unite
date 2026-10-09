@@ -4,20 +4,74 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Gooners Unite</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
   <style>
-    html, body { margin: 0; height: 100%; background: #111; }
-    body { display: flex; align-items: center; justify-content: center; }
-    #game canvas { display: block; }
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #140f24; }
+    body { font-family: 'VT323', monospace; color: #fff; user-select: none; }
+    #game canvas {
+      position: fixed; inset: 0; width: 100vw; height: 100vh;
+      image-rendering: pixelated; image-rendering: crisp-edges;
+    }
+    .hud { position: fixed; pointer-events: none; text-shadow: 2px 2px 0 #000; }
+    #cross { left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px 0 0 -2px; background: #fff; box-shadow: 0 0 0 1px #000; }
+    #cross.hot { width: 10px; height: 10px; margin: -5px 0 0 -5px; background: none; border: 2px solid #ffd60a; box-shadow: none; }
+    #prompt { left: 0; right: 0; top: calc(50% + 28px); text-align: center; font-size: 30px; color: #ffd60a; }
+    #info { left: 0; right: 0; top: calc(50% + 58px); text-align: center; font-size: 22px; color: #e6e6e6; padding: 0 16px; }
+    #msg { left: 0; right: 0; bottom: 48px; text-align: center; font-size: 28px; padding: 0 16px; }
+    #zone { left: 20px; top: 14px; font-size: 32px; color: #2ec4b6; transition: opacity 0.3s; }
+    #inv { right: 20px; top: 14px; font-size: 22px; text-align: right; color: #cfcfcf; }
+    #inv b { color: #ffd60a; font-weight: normal; }
+    #overlay {
+      position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      background: radial-gradient(circle at 50% 40%, rgba(255, 79, 129, 0.35), rgba(20, 15, 36, 0.92) 70%); cursor: pointer; text-align: center; padding: 16px;
+    }
+    #overlay.hidden { display: none; }
+    #overlay h1 { font-size: clamp(48px, 11vw, 120px); margin: 0; line-height: 0.9; color: #ffd60a; text-shadow: 5px 5px 0 #ff4f81, 10px 10px 0 #2ec4b6; letter-spacing: 2px; }
+    #overlay .sub { font-size: 26px; color: #fff; margin: 14px 0 26px; }
+    #overlay #play { font-size: 34px; color: #140f24; background: #ffd60a; padding: 6px 22px; box-shadow: 4px 4px 0 #ff4f81; }
+    #overlay .keys { margin-top: 28px; font-size: 22px; color: #d9d9ff; line-height: 1.35; }
+    #overlay .keys span { color: #ffd60a; }
+    #loading { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 40px; background: #140f24; color: #ffd60a; }
   </style>
 </head>
 <body>
   <div id="game"></div>
 
-  <script src="https://cdn.jsdelivr.net/npm/phaser@3.90.0/dist/phaser.min.js"></script>
-  <!-- Scenes load before main.js. Add new scene files here. -->
-  <script src="src/scenes/BootScene.js"></script>
-  <script src="src/scenes/TitleScene.js"></script>
-  <script src="src/scenes/GameScene.js"></script>
+  <div id="cross" class="hud"></div>
+  <div id="prompt" class="hud"></div>
+  <div id="info" class="hud"></div>
+  <div id="msg" class="hud"></div>
+  <div id="zone" class="hud"></div>
+  <div id="inv" class="hud"></div>
+
+  <div id="overlay">
+    <h1>GOONERS<br>UNITE</h1>
+    <div class="sub">An apartment building. Four homes. Everything is real.</div>
+    <div id="play">CLICK TO ENTER</div>
+    <div class="keys">
+      <span>WASD</span> move &nbsp; <span>MOUSE</span> look &nbsp; <span>SHIFT</span> run &nbsp; <span>C</span> crouch<br>
+      <span>E / CLICK</span> open, use, pick up &nbsp; <span>Q</span> drop &nbsp; <span>WHEEL / TAB / 1-9</span> switch held item<br>
+      <span>ESC</span> pause
+    </div>
+  </div>
+  <div id="loading">LOADING...</div>
+
+  <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
+  <!-- Engine -->
+  <script src="src/engine/core.js"></script>
+  <script src="src/engine/textures.js"></script>
+  <script src="src/engine/items.js"></script>
+  <script src="src/engine/furniture.js"></script>
+  <script src="src/engine/build.js"></script>
+  <script src="src/engine/player.js"></script>
+  <!-- World: the building, then one file per apartment -->
+  <script>GU.aptBuilders = [];</script>
+  <script src="src/world/building.js"></script>
+  <script src="src/world/apt101_family.js"></script>
+  <script src="src/world/apt102_gym.js"></script>
+  <script src="src/world/apt103_widow.js"></script>
+  <script src="src/world/apt104_roommates.js"></script>
   <script src="src/main.js"></script>
 </body>
 </html>

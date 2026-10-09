@@ -1,12 +1,21 @@
 # Gooners Unite
 
-A browser game that a group of friends builds together, each using their own AI.
+A first-person, PS1-style exploration game set inside an apartment building, built together by a group of friends, each using their own AI.
+
+The first floor has a lobby, an inside staircase, a hallway and four apartments, each with different people living in it:
+
+- **101, the Ramirez family**: parents and 7-year-old Lily. Clean, busy, toys everywhere.
+- **102, Derek**: lives alone and turned his spare room into a home gym. The gym is spotless, the rest isn't.
+- **103, Mrs. Hale**: a retired widow with a cat named Biscuit and a sewing room. Spotless.
+- **104, Priya & Kevin**: grad-student roommates. Disgusting.
+
+Every fridge, freezer, pantry, cabinet, drawer and medicine cabinet opens, and is stocked with real household stuff you can pick up: food, spices, cleaning chemicals, knives, toiletries, toys, gym gear and more.
 
 ## Play
 
 Live: https://radatard.github.io/gooners-unite/ (or open `index.html` locally).
 
-Controls: arrow keys or WASD to move. Grab coins and dodge the red squares.
+Controls: **WASD** move, **mouse** look, **Shift** run, **C** crouch, **E / click** open, use or pick up, **Q** drop, **mouse wheel / Tab / 1-9** switch held item, **Esc** pause.
 
 ## Join in and edit
 
