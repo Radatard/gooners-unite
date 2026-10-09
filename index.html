@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gooners Unite</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #111; }
+    body { display: flex; align-items: center; justify-content: center; }
+    #game canvas { display: block; }
+  </style>
+</head>
+<body>
+  <div id="game"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.90.0/dist/phaser.min.js"></script>
+  <!-- Scenes load before main.js. Add new scene files here. -->
+  <script src="src/scenes/BootScene.js"></script>
+  <script src="src/scenes/TitleScene.js"></script>
+  <script src="src/scenes/GameScene.js"></script>
+  <script src="src/main.js"></script>
+</body>
+</html>
