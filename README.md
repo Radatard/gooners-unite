@@ -21,6 +21,7 @@ The first floor is laid out like a real mid-rise apartment building. Units sit o
 - **Walls:** built in layers like real wood-frame walls: drywall, studs at 16" on center, headers over doors, insulation, wiring through the studs to outlet boxes, and water/drain pipes in bathroom and kitchen walls.
 - **The sledgehammer:** find it in the electrical room. Hold the mouse to wind up, let go to swing. The longer you charge, the harder it hits. Flick the mouse sideways as you let go for a side swing. Holes break where and how you hit: big ragged holes from full swings, cracks from taps, smaller dents right over a stud. Chunks of drywall, insulation and snapped studs fly off and tumble around. Smash through to get between rooms and apartments. Cut a wire and that room's lights die. Break a pipe and it floods. Brick and concrete block won't break.
 - **Physics:** boxes crumple and fly, cans get crushed, piles of boxes topple, glass shatters into shards, and thrown things can break drywall. It's realistic-ish and a little glitchy on purpose.
+- **Trash monsters:** hit a trash can with the sledgehammer and it climbs out of itself as a trash monster. It chases you, punches, shoves you across the room and sprays sludge that slows you down. Both of you have health bars. Take it out and it bursts into garbage.
 - **Electrical:** each apartment has a breaker panel, and the electrical room has the building's main disconnect.
 
 ## Play

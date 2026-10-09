@@ -157,6 +157,7 @@
   // Fast things hitting walls / glass do damage.
   function hitCollider(b, speed, point, col) {
     const ke = 0.5 * b.mass * speed * speed;
+    if (col.onHit) { if (ke > 10) col.onHit(b, speed, point); return; }
     if (col.el && GU.JANK.wallDamage && ke > 30 && (b.kind !== 'debris' || b.mass > 0.5) && GU.wallImpact) {
       GU.wallImpact(col.el, point, ke / 70, b.vel.lengthSq() > 1e-6 ? b.vel.clone().normalize() : new THREE.Vector3(0, -1, 0));
     } else if (col.owner && speed > 4 && GU.breakableOf) {

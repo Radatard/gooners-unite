@@ -621,6 +621,7 @@
     GU.cyl(g, 0.17, 0.15, 0.55, 0, 0, 0, M(o.color || '#9ea7ad'));
     GU.placeItems(g, 0, 0.55, 0, 0.3, 0.3, o.overflow || [], { gap: 0, jitter: 2 });
     GU.interactive(g, 'Look in trash', () => GU.say(o.msg || 'Coffee grounds, eggshells, a receipt.'));
+    g.userData.trashCan = true; // hit it with the sledgehammer and see (trashmonster.js)
     return g;
   };
 

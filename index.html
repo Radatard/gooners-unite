@@ -26,6 +26,25 @@
     #charge i { display: block; height: 100%; width: 0; background: #ffd60a; }
     #charge.full i { background: #ff9f1c; }
     #charge.over i { background: #ff4f81; }
+    #hp { left: 20px; bottom: 18px; width: 220px; height: 18px; background: rgba(0, 0, 0, 0.6); box-shadow: 0 0 0 2px #000; }
+    #hp i { display: block; height: 100%; width: 100%; background: #e63946; transition: width 0.15s; }
+    #hp span { position: absolute; left: 8px; top: -4px; font-size: 22px; }
+    #hp.low i { background: #ff006e; animation: pulse 0.4s infinite alternate; }
+    @keyframes pulse { to { opacity: 0.5; } }
+    #hurt { inset: 0; opacity: 0; background: radial-gradient(circle, transparent 40%, rgba(200, 0, 0, 0.85)); }
+    #slime { inset: 0; opacity: 0; background:
+      radial-gradient(circle at 18% 28%, rgba(90, 160, 40, 0.92) 0 9%, transparent 10%),
+      radial-gradient(circle at 76% 18%, rgba(80, 140, 30, 0.88) 0 7%, transparent 8%),
+      radial-gradient(circle at 62% 82%, rgba(100, 170, 50, 0.92) 0 11%, transparent 12%),
+      radial-gradient(circle at 12% 86%, rgba(70, 130, 30, 0.88) 0 6%, transparent 7%),
+      radial-gradient(circle at 91% 58%, rgba(90, 150, 40, 0.85) 0 8%, transparent 9%),
+      radial-gradient(circle at 40% 10%, rgba(110, 175, 55, 0.8) 0 5%, transparent 6%); }
+    #dead { inset: 0; display: none; align-items: center; justify-content: center; flex-direction: column; text-align: center; font-size: clamp(40px, 9vw, 96px); color: #9bd53f; text-shadow: 4px 4px 0 #000; background: rgba(20, 30, 10, 0.55); }
+    #dead small { font-size: 26px; color: #fff; }
+    .mhp { position: fixed; width: 96px; height: 8px; margin-left: -48px; background: rgba(0, 0, 0, 0.6); box-shadow: 0 0 0 1px #000; pointer-events: none; display: none; }
+    .mhp i { display: block; height: 100%; width: 100%; background: #9bd53f; }
+    .mhp b { position: absolute; left: -30px; right: -30px; top: -20px; text-align: center; font-size: 16px; font-weight: normal; color: #9bd53f; text-shadow: 2px 2px 0 #000; }
+    .dmg { position: fixed; font-size: 26px; color: #ffd60a; text-shadow: 2px 2px 0 #000; pointer-events: none; transform: translate(-50%, -50%); }
     #overlay {
       position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
       background: radial-gradient(circle at 50% 40%, rgba(255, 79, 129, 0.35), rgba(20, 15, 36, 0.92) 70%); cursor: pointer; text-align: center; padding: 16px;
@@ -49,6 +68,10 @@
   <div id="zone" class="hud"></div>
   <div id="inv" class="hud"></div>
   <div id="charge" class="hud"><i></i></div>
+  <div id="hurt" class="hud"></div>
+  <div id="slime" class="hud"></div>
+  <div id="hp" class="hud"><i></i><span>100</span></div>
+  <div id="dead" class="hud">YOU GOT TRASHED<small>respawning...</small></div>
 
   <div id="overlay">
     <h1>GOONERS<br>UNITE</h1>
@@ -73,6 +96,8 @@
   <script src="src/engine/rigid.js"></script>
   <script src="src/engine/physics.js"></script>
   <script src="src/engine/player.js"></script>
+  <script src="src/engine/health.js"></script>
+  <script src="src/engine/trashmonster.js"></script>
   <!-- World: floor plan, shared rooms, then one file per apartment -->
   <script src="src/world/layout.js"></script>
   <script src="src/world/building.js"></script>

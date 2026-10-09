@@ -59,6 +59,12 @@
       case 'cardboard': noise(0.16, 900, 0.8, 0.7, 3); noise(0.25, 250, 1, 0.5, 2); break;
       case 'crunch': noise(0.2, 2500, 1, 0.5, 3, 'bandpass'); tone(400, 0.15, 0.2, 'square', 90); break;
       case 'boing': tone(180, 0.5, 0.35, 'sine', 720); tone(90, 0.4, 0.2, 'triangle', 360); break;
+      case 'roar': tone(220, 0.9, 0.3, 'sawtooth', 55); tone(110, 0.9, 0.25, 'square', 40); noise(0.9, 500, 0.7, 0.4, 1.2); break;
+      case 'gurgle': for (let i = 0; i < 3; i++) tone(70 + Math.random() * 70, 0.3 + i * 0.15, 0.25, 'sine', 40); noise(0.7, 300, 4, 0.35, 1, 'bandpass'); break;
+      case 'squelch': noise(0.25, 700, 3, 0.6, 2, 'bandpass'); tone(260, 0.12, 0.2, 'sine', 90); break;
+      case 'whack': noise(0.12, 1200, 1, 0.8, 4); tone(120, 0.15, 0.4, 'square', 50); break;
+      case 'oof': tone(190, 0.18, 0.35, 'square', 90); noise(0.12, 600, 1, 0.3, 3); break;
+      case 'spray': noise(1.3, 1500, 0.6, 0.35, 0.6, 'bandpass'); break;
     }
     VOL = 1;
   };
@@ -79,6 +85,7 @@
     const hit = down.intersectObjects(GU.walkables, false)[0];
     parts.push({ m, vel, life, ground: hit ? hit.point.y + size / 2 : 0, glow });
   }
+  GU.particle = particle;
   GU.debris = function (point, color, n, scale) {
     for (let i = 0; i < n; i++) {
       const vel = new THREE.Vector3((Math.random() - 0.5) * 3, Math.random() * 2.5, (Math.random() - 0.5) * 3);
@@ -340,6 +347,8 @@
   GU.smash = function (obj, point, blow) {
     blow = blow || { energy: 1 };
     const dir = blow.dir || point.clone().sub(GU.player.camera.position).normalize();
+    // trash cans don't break. they get up.
+    if (obj.userData.trashCan && GU.trashMonster) { GU.trashMonster(obj); return {}; }
     if (obj.userData.tough && !obj.userData.breakable) {
       GU.sfx('clank');
       GU.debris(point, '#cccccc', 2, 0.5);
@@ -518,7 +527,7 @@
   const SW = { st: 'idle', t: 0, c: 0, kind: 'overhead', sign: 1, E: 0, speed: 0, dur: 0.3, hit: false, halt: false, stop: 0, shake: 0, ring: 0, from: copyPose(POSE.rest), mouse: [], warned: false };
 
   GU.swingStart = function () {
-    if (SW.st !== 'idle' && SW.st !== 'recover') return;
+    if (GU.dead || (SW.st !== 'idle' && SW.st !== 'recover')) return;
     SW.st = 'charge'; SW.t = 0; SW.warned = false; SW.mouse.length = 0;
     SW.from = copyPose(cur);
     GU.sfx('grip');
@@ -574,6 +583,8 @@
       return { hard: res.hard, stopped: res.left < 0.25 };
     }
     if (!oh) return null;
+    const mon = GU.monsterOf && GU.monsterOf(oh.object);
+    if (mon) { mon.hurt(SW.E, dir, oh.point); return { stopped: true }; }
     const t = breakableOf(oh.object);
     if (t) {
       const res = GU.smash(t, oh.point, blow) || {};
@@ -705,6 +716,7 @@
     }
   }
   GU.swingCharging = () => SW.st === 'charge';
+  GU.shake = (s) => { SW.shake = Math.max(SW.shake, s); };
 
   // ---------- per-frame ----------
   GU.physicsUpdate = function (dt, player) {

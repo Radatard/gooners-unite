@@ -27,6 +27,8 @@
       this.down.far = 3;
       this.target = null; // thing with an E action
       this.hit = null;    // whatever the crosshair is on
+      this.kb = new THREE.Vector3(); // getting shoved (m/s), see health.js
+      this.slow = 0;      // seconds left slowed down (sludge)
       this.bindInput();
     }
 
@@ -56,7 +58,7 @@
         GU.swingMouse(e.movementX, e.movementY);
       });
       addEventListener('mousedown', (e) => {
-        if (!GU.locked) return;
+        if (!GU.locked || GU.dead) return;
         if (e.button === 0) { if (this.hasHammer()) GU.swingStart(this); else this.use(); }
         if (e.button === 2) this.toggleGrab();
       });
@@ -95,9 +97,9 @@
       const k = this.keys;
       const crouch = k.KeyC || k.ControlLeft;
       const run = (k.ShiftLeft || k.ShiftRight) && !crouch;
-      const want = crouch ? CROUCH : STAND;
+      const want = GU.dead ? 0.35 : crouch ? CROUCH : STAND;
       this.eye += (want - this.eye) * Math.min(1, dt * 10);
-      if (GU.locked) {
+      if (GU.locked && !GU.dead) {
         let f = 0, s = 0;
         if (k.KeyW || k.ArrowUp) f += 1;
         if (k.KeyS || k.ArrowDown) f -= 1;
@@ -107,13 +109,19 @@
         if (len) {
           const g = GU.grabbing();
           const heavy = g ? Math.max(0.35, 1 - g.obj.userData.movable.mass / 200) : 1;
-          const speed = (run ? 4.2 : crouch ? 1.3 : 2.4) * heavy * dt / len;
+          const speed = (run ? 4.2 : crouch ? 1.3 : 2.4) * heavy * (this.slow > 0 ? 0.5 : 1) * dt / len;
           const sin = Math.sin(this.yaw), cos = Math.cos(this.yaw);
           this.moveAxis('x', (-sin * f + cos * s) * speed);
           this.moveAxis('z', (-cos * f - sin * s) * speed);
           this.bob += dt * (run ? 13 : 9);
         }
       }
+      if (this.kb.lengthSq() > 0.0004) {
+        this.moveAxis('x', this.kb.x * dt);
+        this.moveAxis('z', this.kb.z * dt);
+        this.kb.multiplyScalar(Math.exp(-5 * dt));
+      }
+      this.slow = Math.max(0, this.slow - dt);
       const ground = this.groundAt();
       if (ground > this.pos.y) {
         this.pos.y = Math.min(ground, this.pos.y + dt * 3.5);
@@ -257,7 +265,8 @@
       else if (mov && !(t && t.userData.item)) p += (p ? '   ' : '') + '[G] Drag ' + (mov.userData.movable.name || 'it');
       if (this.hasHammer()) {
         const b = this.hit ? GU.breakableOf(this.hit.object) : null;
-        const what = this.wallHit ? describeWall(this.wallHit) : b ? (b.userData.breakable ? b.userData.breakable.name : b.userData.name) : '';
+        const mon = this.hit && GU.monsterOf ? GU.monsterOf(this.hit.object) : null;
+        const what = mon ? 'the trash monster' : this.wallHit ? describeWall(this.wallHit) : b ? (b.userData.breakable ? b.userData.breakable.name : b.userData.name) : '';
         p += (p ? '   ' : '') + (GU.swingCharging() ? 'Winding up...' : '[Hold click] Swing' + (what ? ' at ' + what : ''));
       }
       prompt.textContent = p;

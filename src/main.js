@@ -133,7 +133,16 @@
 
   // ---- loop ----
   let last = performance.now();
+  // One bad frame shouldn't freeze the whole game: log the error and keep going.
+  let frameErrors = 0;
   function frame(now) {
+    requestAnimationFrame(frame);
+    try { step(now); } catch (e) {
+      if (frameErrors++ < 5) console.error('[Frame]', e);
+      if (frameErrors === 1) GU.say('Something glitched (details in the console). The game keeps going.', 3);
+    }
+  }
+  function step(now) {
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
     cull();
@@ -150,7 +159,6 @@
     renderer.autoClear = false;
     renderer.clearDepth();
     renderer.render(handScene, handCam);
-    requestAnimationFrame(frame);
   }
   // Compile every shader now (while LOADING is up) instead of stuttering the first time you see something.
   setTimeout(() => {
