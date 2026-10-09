@@ -4,16 +4,16 @@ A browser game that a group of friends builds together, each using their own AI.
 
 ## Play
 
-Open the live site (link goes here once GitHub Pages is on), or open `index.html` locally.
+Live: https://radatard.github.io/gooners-unite/ (or open `index.html` locally).
 
 Controls: arrow keys or WASD to move. Grab coins and dodge the red squares.
 
 ## Join in and edit
 
-1. Get added as a collaborator on the GitHub repo (ask the owner).
+1. Get added as a collaborator on the GitHub repo (ask Radatard).
 2. Install [Git](https://git-scm.com/downloads), then clone the repo:
    ```
-   git clone <repo url>
+   git clone https://github.com/Radatard/gooners-unite.git
    ```
 3. Open the folder with your AI tool (Claude Code, Cursor, Copilot, ChatGPT, etc.) and tell it what to add or change.
    The AI should follow the rules in `AGENTS.md`: pull first, make small changes, then commit and push.
