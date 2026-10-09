@@ -372,12 +372,26 @@
     ['foam_roller', 'Foam Roller', 'roll', [0.07, 0.4], ['#1d4ed8'], '', 'Foam roller. Pain.', true],
     ['gym_towel', 'Gym Towel', 'flat', [0.3, 0.03, 0.2], ['#9e9e9e'], '', 'Sweaty gym towel.'],
     ['headband', 'Headband', 'flat', [0.1, 0.02, 0.1], ['#ff1744'], '', 'Sweatband.'],
+
+    // ---- salvage: falls out of smashed walls and dead trash monsters ----
+    ['wood_plank', 'Broken 2x4', 'custom_plank', [], ['#dcbf8a'], '', 'A splintered chunk of 2x4 stud, still with a nail in it.'],
+    ['wood_chips', 'Wood Chips', 'custom_chips', [], ['#c9a56e'], '', 'A handful of splinters and sawdust.'],
+    ['insulation_fluff', 'Insulation Fluff', 'custom_fluff', [], ['#f5a3b8'], '', 'Pink fiberglass. Looks like cotton candy. Do not eat it.'],
+    ['spoiled_meat', 'Spoiled Meat', 'custom_meat', [], ['#6b7a35'], '', 'It used to be a steak. Now it has a pulse.'],
+    ['sour_milk', 'Curdled Milk', 'jug', [0.15, 0.26, 0.15], ['#d9d4a0', '#7a8f3e', '#7a8f3e'], 'MILK', 'Chunky. It sloshes in a bad way.'],
+    ['moldy_bread', 'Moldy Bread', 'bag', [0.13, 0.13, 0.28], ['#9bbf6a', '#556b2f', '#2e3d1a'], 'BREAD', 'Green and fuzzy. Smells like a basement.'],
+    ['rotten_leftovers', 'Rotten Leftovers', 'box', [0.16, 0.07, 0.12], ['#a3b86c', null], '', 'The lid is bulging.'],
+    ['battery_9v', '9V Battery', 'box', [0.03, 0.05, 0.018], ['#1a1a1a', '#d4af37'], '9V', 'Lick it. You know you want to.'],
+    ['bullets', 'Bullets', 'custom_bullets', [], ['#d4af37'], '', 'A handful of loose 9mm rounds. Why did the trash monster have these?'],
+    ['metal_scrap', 'Metal Scrap', 'custom_scrap', [], ['#8d969c'], '', 'Twisted sheet metal from the inside of a trash monster.'],
+    ['iron_heart', 'Iron Heart', 'custom_heart', [], ['#5a5f66'], '', 'A heavy iron heart from a trash monster. It is still beating.'],
   ];
 
   const MATERIAL = {
     wine: 'glass', jar: 'glass', glass: 'glass', candle: 'wood', plate: 'porcelain', bowl: 'porcelain', mug: 'porcelain',
     can: 'metal', dumbbell: 'metal', kettlebell: 'metal', weight: 'metal', knife: 'metal', scissors: 'metal', utensil: 'metal',
     custom_hammer: 'metal', custom_sledge: 'metal', fruit: 'fabric', banana: 'fabric', clothes: 'fabric', pile: 'fabric',
+    custom_plank: 'wood', custom_chips: 'wood', custom_fluff: 'fabric', custom_meat: 'fabric', custom_bullets: 'metal', custom_scrap: 'metal', custom_heart: 'metal',
     teddy: 'fabric', box: 'paper', bag: 'paper', book: 'paper', pizzabox: 'paper', flat: 'fabric', block: 'wood', plant: 'porcelain',
   };
 
@@ -651,6 +665,58 @@
       GU.box(g, 0.05, 0.13, 0.05, -0.05, 0, 0, M('#1f1f1f'));
       GU.cyl(g, 0.006, 0.006, 0.08, 0.13, 0.15, 0, M('#9ea7ad'), { rz: Math.PI / 2 }).position.set(0.14, 0.155, 0);
       return [0.26, 0.07];
+    },
+    custom_plank(g, s, c) {
+      GU.box(g, 0.32, 0.038, 0.089, 0, 0, 0, GU.mat('#ffffff', GU.tex.lumber(c[0])));
+      GU.box(g, 0.06, 0.022, 0.03, 0.18, 0.008, 0.02, M(c[0]), { ry: 0.5 });
+      GU.box(g, 0.05, 0.02, 0.025, 0.175, 0.01, -0.025, M('#c9a56e'), { ry: -0.4 });
+      GU.cyl(g, 0.003, 0.003, 0.06, -0.08, 0.03, 0, M('#8d969c'));
+      return [0.38, 0.1];
+    },
+    custom_chips(g, s, c) {
+      for (let i = 0; i < 10; i++) {
+        const a = i * 2.4, r = 0.015 + (i % 4) * 0.015;
+        GU.box(g, 0.02 + (i % 3) * 0.012, 0.006, 0.008 + (i % 2) * 0.006, Math.cos(a) * r, (i % 3) * 0.004, Math.sin(a) * r, M(i % 2 ? c[0] : '#e2c79a'), { ry: a });
+      }
+      return [0.12, 0.12];
+    },
+    custom_fluff(g, s, c) {
+      const m = GU.mat('#ffffff', GU.tex.insulation());
+      GU.sphere(g, 0.07, 0, 0.045, 0, m, { sx: 1.3, sy: 0.65, sz: 1 });
+      GU.sphere(g, 0.05, 0.06, 0.06, 0.03, m);
+      GU.sphere(g, 0.045, -0.05, 0.05, -0.03, m);
+      return [0.2, 0.15];
+    },
+    custom_meat(g, s, c) {
+      GU.sphere(g, 0.08, 0, 0.028, 0, M(c[0]), { sx: 1.4, sy: 0.35, sz: 1 });
+      GU.box(g, 0.025, 0.02, 0.07, 0.085, 0.015, 0, M('#e8e4c8'));
+      for (const [x, z] of [[-0.04, 0.03], [0.03, -0.035], [-0.02, -0.04]]) GU.sphere(g, 0.018, x, 0.05, z, M('#9bd53f'), { sy: 0.5 });
+      return [0.26, 0.16];
+    },
+    custom_bullets(g, s, c) {
+      for (let i = 0; i < 6; i++) {
+        const x = (i % 3) * 0.014 - 0.014, z = Math.floor(i / 3) * 0.014 - 0.007;
+        GU.cyl(g, 0.0048, 0.0048, 0.019, x, 0, z, M(c[0]));
+        GU.cyl(g, 0.001, 0.0045, 0.009, x, 0.019, z, M('#b87333'));
+      }
+      return [0.06, 0.04];
+    },
+    custom_scrap(g, s, c) {
+      const m = GU.mat('#ffffff', GU.tex.metal(c[0]));
+      GU.box(g, 0.14, 0.006, 0.1, 0, 0.01, 0, m, { rz: 0.3, ry: 0.5 });
+      GU.box(g, 0.1, 0.006, 0.08, 0.03, 0.035, 0.02, m, { rz: -0.5 });
+      GU.box(g, 0.05, 0.05, 0.005, -0.04, 0, 0.03, m, { rx: 0.6 });
+      return [0.18, 0.14];
+    },
+    custom_heart(g, s, c) {
+      const m = GU.mat('#ffffff', GU.tex.metal(c[0]));
+      GU.sphere(g, 0.045, -0.026, 0.085, 0, m);
+      GU.sphere(g, 0.045, 0.026, 0.085, 0, m);
+      GU.cyl(g, 0.065, 0.004, 0.085, 0, 0, 0, m, { seg: 8 });
+      GU.cyl(g, 0.012, 0.012, 0.05, 0.02, 0.11, 0, m);
+      GU.cyl(g, 0.01, 0.01, 0.04, -0.025, 0.11, -0.01, m);
+      GU.sphere(g, 0.014, 0, 0.07, 0.045, GU.glow('#ff3b3b'));
+      return [0.13, 0.1];
     },
     custom_dryer(g, s, c) {
       GU.cyl(g, 0.04, 0.035, 0.2, 0, 0.04, 0, M(c[0]), { rz: Math.PI / 2 });

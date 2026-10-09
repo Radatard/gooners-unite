@@ -159,6 +159,7 @@
     }
 
     use() {
+      if (GU.wireUse && GU.wireUse(this)) return; // pulling / connecting wires (wires.js)
       if (this.target) this.target.userData.interact.use();
     }
 
@@ -229,6 +230,7 @@
 
     // Let go of the held item: it drops from your hand and falls onto whatever is below.
     drop() {
+      if (GU.wireDrop && GU.wireDrop()) return;
       const item = this.take();
       if (!item) return;
       item.position.copy(this.handSpot(0.6));
@@ -259,6 +261,8 @@
         p = '[E] ' + ia.prompt();
         i = ia.info ? ia.info() : '';
       }
+      const wp = GU.wirePrompt ? GU.wirePrompt(this) : '';
+      if (wp && (GU.wireHeld() || !t)) { p = wp; i = ''; }
       const mov = this.hit && GU.movableOf(this.hit.object);
       const g = GU.grabbing();
       if (g) p = '[G] Let go of ' + (g.obj.userData.movable.name || 'it');

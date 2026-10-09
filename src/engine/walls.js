@@ -441,6 +441,13 @@
       for (const s of sheets) this.recount(s);
       this.spawnPieces(gone, blow, En, false);
       this.spawnPieces(loose, blow, En, true);
+      // salvage you can pick up: fluff out of insulation, chips out of OSB
+      const count = (k) => gone.filter(([s]) => s.k === k).length + loose.filter(([s]) => s.k === k).length;
+      const drops = [['insulation_fluff', Math.min(3, Math.ceil(count('insul') / 20))], ['wood_chips', Math.min(2, Math.ceil(count('osb') / 25))]];
+      const out = point.clone().addScaledVector(blow.aim || blow.dir, -0.15);
+      for (const [id, n] of drops) {
+        for (let i = 0; i < n; i++) GU.dropSalvage(id, out, blow.dir.clone().multiplyScalar(0.5 + Math.random() * 1.5).add(new THREE.Vector3((Math.random() - 0.5) * 2, Math.random() * 1.5, (Math.random() - 0.5) * 2)));
+      }
       GU.sfx({ gyp: 'crumble', insul: 'thud', osb: 'crack' }[e.k], Math.min(1, 0.35 + En / 3));
       GU.debris(point, PIECE_COLOR[e.k], Math.min(14, 2 + Math.floor(gone.length / 3)), e.k === 'insul' ? 0.6 : 1);
       if (gone.length || loose.length) {
@@ -571,15 +578,12 @@
         GU.addCollider({ box: ne.box, enabled: () => !ne.broken, el: ne });
       }
       const left = Math.max(0, E - before / 0.95 * 0.7);
-      const wb = this.worldBox(e.u0, e.u1, c0, c1, e.w0, e.w1), size = wb.getSize(new THREE.Vector3());
-      const m = new THREE.Mesh(GU.boxGeo(size.x, size.y, size.z), M.stud);
-      wb.getCenter(m.position);
-      GU.dropped.add(m);
+      // the bit that snapped out is a broken 2x4 you can pick up, plus some wood chips
+      const c = this.worldBox(e.u0, e.u1, c0, c1, e.w0, e.w1).getCenter(new THREE.Vector3());
       const rnd = () => Math.random() - 0.5;
-      GU.rigid.add(m, {
-        vel: blow.dir.clone().multiplyScalar(1.2 + 2 * left).add(new THREE.Vector3(rnd(), Math.random(), rnd())),
-        ang: new THREE.Vector3(rnd() * 8, rnd() * 8, rnd() * 8), density: 500, bounce: 0.3, sfx: 'drop', kind: 'debris',
-      });
+      const v = blow.dir.clone().multiplyScalar(1.2 + Math.min(2 * left, 12)).add(new THREE.Vector3(rnd(), Math.random(), rnd()));
+      GU.dropSalvage('wood_plank', c, v);
+      for (let i = 0, n = 1 + Math.floor(Math.random() * 2); i < n; i++) GU.dropSalvage('wood_chips', c, v.clone().multiplyScalar(0.5).add(new THREE.Vector3(rnd() * 2, Math.random(), rnd() * 2)));
       return { absorb: E - left, through: true };
     }
 
@@ -637,6 +641,22 @@
       }
     }
     return { hard, left: Math.max(0, E), layers: n };
+  };
+
+  // Drop a pickup-able item (planks, wood chips, fluff...). Keeps at most ~60 lying around:
+  // the oldest ones nobody picked up get cleaned away.
+  const salvage = [];
+  GU.dropSalvage = function (id, pos, vel) {
+    for (let i = 0; i < salvage.length; i++) {
+      const o = salvage[i];
+      if (o.parent !== GU.dropped) { salvage.splice(i--, 1); continue; }
+      if (salvage.length >= 60) { o.parent.remove(o); salvage.splice(i--, 1); }
+    }
+    const it = GU.item(id);
+    if (!it) return null;
+    GU.throwItem(it, pos.clone(), vel);
+    salvage.push(it);
+    return it;
   };
 
   // Something flying into a wall (thrown, or launched by the hammer).

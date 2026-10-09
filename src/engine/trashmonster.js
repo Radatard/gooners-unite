@@ -88,6 +88,19 @@
   }
   const floaters = [];
 
+  const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+  function lootTable() {
+    const out = [];
+    const food = ['spoiled_meat', 'sour_milk', 'moldy_bread', 'rotten_leftovers', 'milk_expired'];
+    for (let i = 0, n = 2 + Math.floor(Math.random() * 2); i < n; i++) out.push(pick(food));
+    out.push(pick(['batteries', 'battery_9v']));
+    for (let i = 0, n = 1 + Math.floor(Math.random() * 2); i < n; i++) out.push('bullets');
+    for (let i = 0, n = 2 + Math.floor(Math.random() * 2); i < n; i++) out.push('metal_scrap');
+    out.push('iron_heart');
+    return out;
+  }
+  const hearts = []; // iron hearts keep beating
+
   class TrashMonster {
     constructor(can) {
       const color = (can.userData.breakable && can.userData.breakable.color) || '#9ea7ad';
@@ -188,12 +201,13 @@
       GU.sfx('crumble');
       GU.sfx('squelch');
       GU.say('You took out the trash.', 3);
-      // it bursts into actual garbage
-      for (const id of ['trash_bag_full', 'pizza_box', 'crushed_can', 'crushed_can', 'soda', 'milk_expired', 'chip_bag_empty']) {
+      // loot: spoiled food, batteries, bullets, scrap metal, and its iron heart
+      for (const id of lootTable()) {
         const it = GU.item(id);
         if (!it) continue;
         const vel = dir.clone().multiplyScalar(2 + Math.random() * 2).add(new THREE.Vector3(rnd() * 4, 2 + Math.random() * 3, rnd() * 4));
         GU.throwItem(it, c.clone().add(new THREE.Vector3(rnd() * 0.4, rnd() * 0.6, rnd() * 0.4)), vel);
+        if (id === 'iron_heart') hearts.push(it);
       }
       const metal = GU.mat('#ffffff', GU.tex.metal('#9ea7ad')), bag = M('#1f2a1f');
       GU.rigid.chunk({ pos: c.clone().add(new THREE.Vector3(0, 0.6, 0)), sx: 0.7, sy: 0.7, sz: 0.06, mats: [metal, metal], vel: new THREE.Vector3(rnd() * 3, 5, rnd() * 3), ang: new THREE.Vector3(8, 3, 5), density: 300, sfx: 'clank' });
@@ -206,6 +220,7 @@
       if (this.state === 'dead') return;
       const pr = this.parts;
       this.t += dt;
+      if (this.shock > 0) { this.shock -= dt; if (this.state !== 'rise') { this.state = 'stagger'; this.t = 0; this.atk = null; } }
       // floor under it
       if ((this.groundT -= dt) <= 0) {
         this.groundT = 0.2;
@@ -317,7 +332,7 @@
       r.rotation.y = this.yaw;
       r.scale.setScalar(scale);
       pr.torso.rotation.x = lean;
-      pr.torso.rotation.z = this.state === 'rise' ? Math.sin(this.t * 33) * 0.1 : Math.sin(this.t * 2) * 0.03;
+      pr.torso.rotation.z = this.shock > 0 ? rnd() * 0.5 : this.state === 'rise' ? Math.sin(this.t * 33) * 0.1 : Math.sin(this.t * 2) * 0.03;
       pr.lid.rotation.x = lid;
       pr.arms[0].rotation.x = armL;
       pr.arms[1].rotation.x = armR;
@@ -418,5 +433,10 @@
       if (Math.hypot(P.pos.x - pd.p.x, P.pos.z - pd.p.z) < pd.r && Math.abs(P.pos.y - pd.p.y) < 0.3) P.slow = Math.max(P.slow, 0.3);
     }
     for (let i = floaters.length - 1; i >= 0; i--) if (floaters[i](dt)) floaters.splice(i, 1);
+    const beat = 1 + 0.09 * Math.pow(Math.max(0, Math.sin(performance.now() / 1000 * 7)), 6);
+    for (let i = hearts.length - 1; i >= 0; i--) {
+      if (!hearts[i].parent || hearts[i].userData.broken) continue; // (in your pocket: it beats again when dropped)
+      hearts[i].scale.setScalar(beat);
+    }
   });
 })();

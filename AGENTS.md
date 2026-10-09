@@ -19,6 +19,7 @@ Several friends edit this game, each with their own AI (Claude, ChatGPT, Copilot
   - `src/engine/physics.js`: dropping, throwing, dragging furniture, smashing and crumpling, debris, sounds, the chargeable sledgehammer swing
   - `src/engine/player.js`: movement, collision, interaction, inventory
   - `src/engine/health.js`: player health, damage (`GU.hurtPlayer`), getting shoved/slimed, dying and respawning
+  - `src/engine/wires.js`: pull electrical wire out of opened walls and connect it to things (appliances, monsters, other wires)
   - `src/engine/trashmonster.js`: hit a trash can with the sledgehammer and it becomes a trash monster (AI, attacks, health bar, loot)
   - `src/world/layout.js`: the floor plan: apartment templates (studio / 1 bed / 2 bed), where each unit goes, shared rooms
   - `src/world/building.js`: contents of the shared rooms (stairs, lobby, maintenance, laundry...)
@@ -46,6 +47,9 @@ Several friends edit this game, each with their own AI (Claude, ChatGPT, Copilot
 
 - The player has 100 HP (bottom-left bar) and slowly regenerates after 6 s without taking damage. At 0 HP you respawn in the lobby. Monsters hurt you with `GU.hurtPlayer(amount, { push, slime, shake })`.
 - Trash cans are tagged `userData.trashCan` in `furniture.js`. `GU.smash` turns them into a `TrashMonster` instead of breaking them. It has 200 HP and a health bar over its head. Sledgehammer damage is energy x 6 (a tap does 19, a full charge 192). Heavy things thrown at it hurt it too, through `onHit` on its collider. Its attacks are a punch (12 damage), a shove (6 damage plus a big knockback) and a sludge spray (3 damage per tick plus a slowdown, and it leaves puddles that slow you). When a wall blocks it, it punches through the drywall. When it dies, it bursts into real garbage items.
+- When a monster dies it drops loot from `lootTable()` in `trashmonster.js`: spoiled food, batteries, bullets, metal scrap and a beating iron heart. Add loot items to `CATALOG` first.
+- Broken walls drop salvage you can pick up through `GU.dropSalvage(id, pos, vel)`: snapped studs give `wood_plank` and `wood_chips`, insulation gives `insulation_fluff`, and OSB gives `wood_chips`. Only about 60 pieces stay on the floor; the oldest ones nobody picked up get cleaned away.
+- Wires: [E] on an exposed wire in an opened wall pulls it out (`wires.js`). [E] connects the loose end: appliances in `DEVICES` power up (glow, sometimes blow up), trash monsters get electrocuted, a trash can wakes up, and another wire gets spliced (a cut circuit comes back on). Power comes from the wire's circuit (`circuit.live()`), so breakers and the main disconnect matter. Live wires zap you.
 - A new monster can copy `trashmonster.js`: build a model, give it `root.userData.monster = this` and a `hurt(energy, dir, point)` method, and the hammer will hit it automatically.
 - `main.js` catches errors from individual frames, so one bug logs to the console instead of freezing the game.
 
